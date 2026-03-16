@@ -1,0 +1,45 @@
+import { Suspense } from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { getAssets } from '@/lib/data/assets';
+import { getEmployeeOptions } from '@/lib/data/employees';
+import { AssetsShell } from './_components/AssetsShell';
+
+interface Props {
+  searchParams: Promise<Record<string, string>>;
+}
+
+export default async function AssetsPage({ searchParams }: Props) {
+  const sp = await searchParams;
+
+  const page     = Math.max(0, Number(sp.page ?? 0));
+  const pageSize = ([50, 75, 100].includes(Number(sp.pageSize)) ? Number(sp.pageSize) : 50) as 50 | 75 | 100;
+  const sortField = sp.sortField ?? 'createdAt';
+  const sortDir   = sp.sortDir   ?? 'desc';
+
+  const [{ rows, total }, employees] = await Promise.all([
+    getAssets({ page, pageSize, sortField, sortDir, filters: {
+      search:     sp.search,
+      assetType:  sp.assetType,
+      isAssigned: sp.isAssigned,
+      location:   sp.location,
+    }}),
+    getEmployeeOptions(),
+  ]);
+
+  return (
+    <Box>
+      <Typography variant="subtitle1" fontWeight={700} mb={2}>Hardware Assets</Typography>
+      <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>}>
+        <AssetsShell
+          rows={rows}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          sortField={sortField}
+          sortDir={sortDir}
+          employees={employees}
+        />
+      </Suspense>
+    </Box>
+  );
+}
