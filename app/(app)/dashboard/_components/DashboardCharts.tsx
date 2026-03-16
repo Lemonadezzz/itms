@@ -4,37 +4,34 @@ import { Box, Card, CardContent, Typography, Grid } from '@mui/material';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 
-const TYPE_COLORS: Record<string, string> = {
-  laptop:  '#F05340',
-  desktop: '#4085F0',
-  display: '#269066',
-};
-
 interface Props {
-  byType: { type: string; count: number }[];
   byLifecycle: { stage: string; count: number; color: string }[];
+  byCostPerDepartment: { department: string; cost: number }[];
 }
 
-export function DashboardCharts({ byType, byLifecycle }: Props) {
-  const pieData = byType.map((t, i) => ({
+const phpFormat = (v: number) =>
+  new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(v);
+
+export function DashboardCharts({ byLifecycle, byCostPerDepartment }: Props) {
+  const pieData = byLifecycle.map((l, i) => ({
     id: i,
-    value: t.count,
-    label: t.type.charAt(0).toUpperCase() + t.type.slice(1),
-    color: TYPE_COLORS[t.type] ?? '#888',
+    value: l.count,
+    label: l.stage,
+    color: l.color,
   }));
 
   return (
     <Grid container spacing={2} sx={{ flex: 1 }}>
-      <Grid size={{ xs: 12, md: 5 }}>
-        <Card sx={{ height: '100%' }}>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card sx={{ height: 360 }}>
           <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
-              Assets by Type
+              Asset Lifecycle
             </Typography>
-            <Box sx={{ flex: 1, minHeight: 220, mt: 1 }}>
+            <Box sx={{ flex: 1, minHeight: 0, mt: 1 }}>
               <PieChart
                 series={[{ data: pieData, innerRadius: 50, paddingAngle: 2, cornerRadius: 4 }]}
-                height={260}
+                height={290}
                 slotProps={{ legend: { direction: 'row', position: { vertical: 'bottom', horizontal: 'middle' } } as object }}
               />
             </Box>
@@ -42,18 +39,20 @@ export function DashboardCharts({ byType, byLifecycle }: Props) {
         </Card>
       </Grid>
 
-      <Grid size={{ xs: 12, md: 7 }}>
-        <Card sx={{ height: '100%' }}>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Card sx={{ height: 360 }}>
           <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
-              Assets by Lifecycle Stage
+              Asset Cost by Department
             </Typography>
-            <Box sx={{ flex: 1, minHeight: 220, mt: 1 }}>
+            <Box sx={{ flex: 1, minHeight: 0, mt: 1 }}>
               <BarChart
-                xAxis={[{ scaleType: 'band', data: byLifecycle.map((l) => l.stage) }]}
-                series={[{ data: byLifecycle.map((l) => l.count), color: '#F05340', label: 'Assets' }]}
-                height={260}
-                margin={{ top: 10, bottom: 30, left: 30, right: 10 }}
+                yAxis={[{ scaleType: 'band', data: byCostPerDepartment.map((d) => d.department), tickLabelStyle: { fontSize: 10 } }]}
+                xAxis={[{ valueFormatter: (v) => phpFormat(v as number), tickLabelStyle: { fontSize: 9 } }]}
+                series={[{ data: byCostPerDepartment.map((d) => d.cost), color: '#F05340', label: 'Cost' }]}
+                layout="horizontal"
+                height={290}
+                margin={{ top: 10, bottom: 30, left: 90, right: 20 }}
               />
             </Box>
           </CardContent>

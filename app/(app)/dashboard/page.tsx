@@ -11,7 +11,7 @@ const statCards = (s: Awaited<ReturnType<typeof getDashboardStats>>) => [
   { label: 'Total Assets',  value: s.totalAssets,         icon: <Inventory />,            color: '#F05340' },
   { label: 'Assigned',      value: s.assignedCount,       icon: <CheckCircle />,          color: '#22c55e' },
   { label: 'Available',     value: s.availableCount,      icon: <RadioButtonUnchecked />, color: '#4085F0' },
-  { label: 'Total Cost',    value: phpFormat(s.totalCost), icon: <AttachMoney />,         color: '#eab308' },
+  { label: 'Total Asset Value',    value: phpFormat(s.totalCost), icon: <AttachMoney />,         color: '#eab308' },
 ];
 
 async function DashboardContent() {
@@ -35,7 +35,7 @@ async function DashboardContent() {
         ))}
       </Grid>
 
-      <DashboardCharts byType={stats.byType} byLifecycle={stats.byLifecycle} />
+      <DashboardCharts byLifecycle={stats.byLifecycle} byCostPerDepartment={stats.byCostPerDepartment} />
     </Box>
   );
 }

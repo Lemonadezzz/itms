@@ -2,7 +2,7 @@
 
 import { DataGrid, GridColDef, GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
 import { Chip, Box, IconButton, Tooltip } from '@mui/material';
-import { AssignmentInd, AssignmentReturn, Edit, Delete } from '@mui/icons-material';
+import { AssignmentInd, AssignmentReturn, Edit, Delete, Visibility } from '@mui/icons-material';
 import type { AssetRow, PaginationParams } from '@/types';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -37,6 +37,7 @@ interface AssetTableProps {
   pagination: PaginationParams;
   onPaginationChange: (m: GridPaginationModel) => void;
   onSortChange: (m: GridSortModel) => void;
+  onDetail?: (row: AssetRow) => void;
   onAssign?: (row: AssetRow) => void;
   onReturn?: (row: AssetRow) => void;
   onEdit?:   (row: AssetRow) => void;
@@ -46,7 +47,7 @@ interface AssetTableProps {
 
 export function AssetTable({
   rows, rowCount, pagination, onPaginationChange, onSortChange,
-  onAssign, onReturn, onEdit, onDelete, loading,
+  onDetail, onAssign, onReturn, onEdit, onDelete, loading,
 }: AssetTableProps) {
   const columns: GridColDef<AssetRow>[] = [
     { field: 'assetCode', headerName: 'Code',     width: 100 },
@@ -81,9 +82,16 @@ export function AssetTable({
       ),
     },
     {
-      field: 'actions', headerName: '', width: 120, sortable: false,
+      field: 'actions', headerName: '', width: 150, sortable: false,
       renderCell: ({ row }) => (
         <Box sx={{ display: 'flex' }}>
+          {onDetail && (
+            <Tooltip title="See Details">
+              <IconButton size="small" onClick={() => onDetail(row)}>
+                <Visibility sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           {!row.isAssigned && onAssign && (
             <Tooltip title="Assign">
               <IconButton size="small" onClick={() => onAssign(row)}>

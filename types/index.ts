@@ -1,3 +1,10 @@
+export type AssetAssignmentHistory = {
+  employeeName: string;
+  assignedDate: string;
+  returnedDate?: string;
+  notes?: string;
+};
+
 export type AssetRow = {
   _id: string;
   assetCode: string;
@@ -9,6 +16,8 @@ export type AssetRow = {
   ageInMonths: number;
   assignedTo?: string;
   isAssigned: boolean;
+  depreciationMethod?: string;
+  assignmentHistory: AssetAssignmentHistory[];
 };
 
 export type PaginationParams = {

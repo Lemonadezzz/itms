@@ -1,7 +1,7 @@
 import { Schema, model, models, Document, Types } from 'mongoose';
 
 export const ASSET_TYPES = ['laptop', 'desktop', 'display'] as const;
-export const DEPRECIATION_METHODS = ['straight-line', 'declining-balance'] as const;
+export const DEPRECIATION_METHODS = ['straight-line', 'declining-balance', 'custom'] as const;
 
 export type AssetType = (typeof ASSET_TYPES)[number];
 
@@ -71,4 +71,6 @@ const AssetSchema = new Schema<IAsset>(
 AssetSchema.index({ assetType: 1 });
 AssetSchema.index({ 'currentAssignment.employeeId': 1 });
 
-export const Asset = models.Asset ?? model<IAsset>('Asset', AssetSchema);
+// Re-register model to pick up schema changes during development
+if (models.Asset) delete (models as Record<string, unknown>).Asset;
+export const Asset = model<IAsset>('Asset', AssetSchema);

@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/db/mongoose';
 import { Asset, IAsset } from '@/models/Asset';
-import type { AssetRow } from '@/types';
+import type { AssetRow, AssetAssignmentHistory } from '@/types';
 import type { Types } from 'mongoose';
 
 export type AssetFilters = {
@@ -18,6 +18,12 @@ type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
     assignedDate: Date;
     notes?: string;
   };
+  assignmentHistory: {
+    employeeName: string;
+    assignedDate: Date;
+    returnedDate?: Date;
+    notes?: string;
+  }[];
 };
 
 export async function getAssets({
@@ -80,6 +86,13 @@ export async function getAssets({
       ageInMonths,
       assignedTo: emp?.employeeName,
       isAssigned: !!a.currentAssignment,
+      depreciationMethod: a.depreciationMethod,
+      assignmentHistory: (a.assignmentHistory ?? []).map((h): AssetAssignmentHistory => ({
+        employeeName: h.employeeName,
+        assignedDate: new Date(h.assignedDate).toISOString(),
+        returnedDate: h.returnedDate ? new Date(h.returnedDate).toISOString() : undefined,
+        notes: h.notes,
+      })),
     };
   });
 

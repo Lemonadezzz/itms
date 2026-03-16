@@ -9,6 +9,7 @@ import { AssetTable } from '@/components/assets/AssetTable';
 import { AssetFiltersBar } from './AssetFiltersBar';
 import { AssetFormDialog } from './AssetFormDialog';
 import { AssignDialog } from './AssignDialog';
+import { AssetDetailDialog } from './AssetDetailDialog';
 import { returnAsset, deleteAsset } from '@/actions/assetActions';
 import type { AssetRow } from '@/types';
 
@@ -31,6 +32,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   const [createOpen, setCreateOpen]     = useState(false);
   const [editTarget, setEditTarget]     = useState<AssetRow | null>(null);
   const [assignTarget, setAssignTarget] = useState<AssetRow | null>(null);
+  const [detailTarget, setDetailTarget] = useState<AssetRow | null>(null);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -64,12 +66,20 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           pagination={{ page, pageSize, sortField, sortDir: sortDir as 'asc' | 'desc' }}
           onPaginationChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
           onSortChange={(m: GridSortModel) => { if (m[0]) pushParams({ sortField: m[0].field, sortDir: m[0].sort ?? 'asc', page: 0 }); }}
+          onDetail={(row) => setDetailTarget(row)}
           onAssign={(row) => setAssignTarget(row)}
           onReturn={handleReturn}
           onEdit={(row) => setEditTarget(row)}
           onDelete={handleDelete}
         />
       </Box>
+
+      {detailTarget && (
+        <AssetDetailDialog
+          asset={detailTarget}
+          onClose={() => setDetailTarget(null)}
+        />
+      )}
 
       <AssetFormDialog
         open={createOpen || !!editTarget}

@@ -30,7 +30,7 @@ export function AssetFormDialog({ open, asset, onClose }: Props) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth key={asset?._id ?? 'new'}>
       <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 700 }}>
         {isEdit ? 'Edit Asset' : 'Add Asset'}
       </DialogTitle>
@@ -70,10 +70,11 @@ export function AssetFormDialog({ open, asset, onClose }: Props) {
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="depreciationMethod" label="Depreciation" size="small" select fullWidth
-                defaultValue={''}>
+                defaultValue={asset?.depreciationMethod ?? ''}>
                 <MenuItem value="">None</MenuItem>
                 <MenuItem value="straight-line">Straight-line</MenuItem>
                 <MenuItem value="declining-balance">Declining Balance</MenuItem>
+                <MenuItem value="custom">Custom (5-Year Accelerated)</MenuItem>
               </TextField>
             </Grid>
           </Grid>
