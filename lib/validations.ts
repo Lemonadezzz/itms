@@ -8,7 +8,7 @@ export const CreateAssetSchema = z.object({
   acquisitionDate:    z.coerce.date(),
   acquisitionCost:    z.coerce.number().positive(),
   supplierId:         z.string().optional(),
-  depreciationMethod: z.enum(['straight-line', 'declining-balance']).optional(),
+  depreciationMethod: z.enum(['straight-line', 'declining-balance']).optional().or(z.literal('').transform(() => undefined)),
 });
 
 export const AssignAssetSchema = z.object({

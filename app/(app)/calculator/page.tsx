@@ -22,31 +22,27 @@ const phpFormat = (v: number) =>
 function calcSchedule(cost: number, salvage: number, life: number, method: Method): ScheduleRow[] {
   const rows: ScheduleRow[] = [];
   let book = cost;
-
   for (let y = 1; y <= life; y++) {
     const opening = book;
     let dep: number;
-
     if (method === 'straight-line') {
       dep = (cost - salvage) / life;
     } else {
       const rate = 1 - Math.pow(salvage / cost, 1 / life);
       dep = book * rate;
     }
-
     dep = Math.min(dep, book - salvage);
     book = opening - dep;
     rows.push({ year: y, openingValue: opening, depreciation: dep, closingValue: book });
   }
-
   return rows;
 }
 
 export default function CalculatorPage() {
-  const [cost,    setCost]    = useState('');
-  const [salvage, setSalvage] = useState('0');
-  const [life,    setLife]    = useState('4');
-  const [method,  setMethod]  = useState<Method>('straight-line');
+  const [cost,     setCost]     = useState('');
+  const [salvage,  setSalvage]  = useState('0');
+  const [life,     setLife]     = useState('4');
+  const [method,   setMethod]   = useState<Method>('straight-line');
   const [schedule, setSchedule] = useState<ScheduleRow[]>([]);
 
   function calculate() {
@@ -60,10 +56,10 @@ export default function CalculatorPage() {
   const totalDep = schedule.reduce((sum, r) => sum + r.depreciation, 0);
 
   return (
-    <Box>
-      <Typography variant="subtitle1" fontWeight={700} mb={2}>Depreciation Calculator</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2, overflow: 'auto' }}>
+      <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Depreciation Calculator</Typography>
 
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 2, flexShrink: 0 }}>
         <CardContent>
           <Grid container spacing={2} alignItems="flex-end">
             <Grid size={{ xs: 12, sm: 3 }}>
@@ -98,9 +94,9 @@ export default function CalculatorPage() {
       </Card>
 
       {schedule.length > 0 && (
-        <Card>
-          <CardContent sx={{ p: '12px !important' }}>
-            <Table size="small">
+        <Card sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <CardContent sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: '12px !important' }}>
+            <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
                   {['Year', 'Opening Value', 'Depreciation', 'Closing Value'].map((h) => (

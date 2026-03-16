@@ -12,13 +12,21 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const AGE_CONFIG = [
-  { max: 24,       label: 'New',      color: '#22c55e' },
-  { max: 42,       label: 'Mid-life', color: '#eab308' },
-  { max: 48,       label: 'Near EOL', color: '#f97316' },
-  { max: Infinity, label: 'EOL',      color: '#ef4444' },
+  { max: 24,       color: '#22c55e' },
+  { max: 42,       color: '#eab308' },
+  { max: 48,       color: '#f97316' },
+  { max: Infinity, color: '#ef4444' },
 ];
 
-const getAge = (months: number) => AGE_CONFIG.find((c) => months <= c.max)!;
+const getAgeColor = (months: number) => AGE_CONFIG.find((c) => months <= c.max)!.color;
+
+function formatAge(months: number): string {
+  const yrs = Math.floor(months / 12);
+  const mos = months % 12;
+  const yrStr  = yrs > 0 ? `${yrs}yr${yrs > 1 ? 's' : ''}` : '';
+  const moStr  = mos > 0 ? `${mos}mo${mos > 1 ? 's' : ''}` : '';
+  return [yrStr, moStr].filter(Boolean).join(' ') || '0mos';
+}
 
 const phpFormat = (v: number) =>
   new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
@@ -51,16 +59,13 @@ export function AssetTable({
       ),
     },
     {
-      field: 'ageInMonths', headerName: 'Age', width: 130,
-      renderCell: ({ value }) => {
-        const cfg = getAge(value as number);
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: cfg.color, flexShrink: 0 }} />
-            <span style={{ fontSize: '0.72rem' }}>{value}mo · {cfg.label}</span>
-          </Box>
-        );
-      },
+      field: 'ageInMonths', headerName: 'Age', width: 110,
+      renderCell: ({ value }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: getAgeColor(value as number), flexShrink: 0 }} />
+          <span style={{ fontSize: '0.72rem' }}>{formatAge(value as number)}</span>
+        </Box>
+      ),
     },
     { field: 'location',       headerName: 'Location',    width: 100 },
     {
@@ -126,7 +131,7 @@ export function AssetTable({
       paginationModel={{ page: pagination.page, pageSize: pagination.pageSize }}
       onPaginationModelChange={onPaginationChange}
       onSortModelChange={onSortChange}
-      sx={{ border: 0, '--DataGrid-rowBorderColor': 'transparent' }}
+      sx={{ border: 0, flex: 1 }}
     />
   );
 }

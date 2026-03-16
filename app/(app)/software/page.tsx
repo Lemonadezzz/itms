@@ -16,8 +16,8 @@ export default async function SoftwarePage({ searchParams }: Props) {
   ]);
 
   return (
-    <Box>
-      <Typography variant="subtitle1" fontWeight={700} mb={2}>Software Licenses</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
+      <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Software Licenses</Typography>
       <SoftwareShell rows={rows} total={total} page={page} pageSize={pageSize} suppliers={suppliers} />
     </Box>
   );

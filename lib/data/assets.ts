@@ -8,6 +8,7 @@ export type AssetFilters = {
   assetType?: string;
   isAssigned?: string;
   location?: string;
+  assignedToId?: string;
 };
 
 type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
@@ -47,6 +48,7 @@ export async function getAssets({
   if (filters.isAssigned === 'true')  query.currentAssignment = { $exists: true, $ne: null };
   if (filters.isAssigned === 'false') query.currentAssignment = { $exists: false };
   if (filters.location)   query.location = { $regex: filters.location, $options: 'i' };
+  if (filters.assignedToId) query['currentAssignment.employeeId'] = filters.assignedToId;
 
   const sort: Record<string, 1 | -1> = { [sortField]: sortDir === 'asc' ? 1 : -1 };
 

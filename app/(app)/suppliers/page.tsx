@@ -12,8 +12,8 @@ export default async function SuppliersPage({ searchParams }: Props) {
   const { rows, total } = await getSuppliers({ page, pageSize, search: sp.search });
 
   return (
-    <Box>
-      <Typography variant="subtitle1" fontWeight={700} mb={2}>Suppliers</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
+      <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Suppliers</Typography>
       <SuppliersShell rows={rows} total={total} page={page} pageSize={pageSize} />
     </Box>
   );

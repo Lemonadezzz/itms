@@ -49,25 +49,27 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 1.5, minHeight: 0 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <AssetFiltersBar onFilter={(f) => pushParams({ ...f, page: 0 })} />
+        <AssetFiltersBar employees={employees} onFilter={(f) => pushParams({ ...f, page: 0 })} />
         <Button variant="contained" size="small" startIcon={<Add />} onClick={() => setCreateOpen(true)}>
           Add Asset
         </Button>
       </Stack>
 
-      <AssetTable
-        rows={rows}
-        rowCount={total}
-        pagination={{ page, pageSize, sortField, sortDir: sortDir as 'asc' | 'desc' }}
-        onPaginationChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
-        onSortChange={(m: GridSortModel) => { if (m[0]) pushParams({ sortField: m[0].field, sortDir: m[0].sort ?? 'asc', page: 0 }); }}
-        onAssign={(row) => setAssignTarget(row)}
-        onReturn={handleReturn}
-        onEdit={(row) => setEditTarget(row)}
-        onDelete={handleDelete}
-      />
+      <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+        <AssetTable
+          rows={rows}
+          rowCount={total}
+          pagination={{ page, pageSize, sortField, sortDir: sortDir as 'asc' | 'desc' }}
+          onPaginationChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
+          onSortChange={(m: GridSortModel) => { if (m[0]) pushParams({ sortField: m[0].field, sortDir: m[0].sort ?? 'asc', page: 0 }); }}
+          onAssign={(row) => setAssignTarget(row)}
+          onReturn={handleReturn}
+          onEdit={(row) => setEditTarget(row)}
+          onDelete={handleDelete}
+        />
+      </Box>
 
       <AssetFormDialog
         open={createOpen || !!editTarget}

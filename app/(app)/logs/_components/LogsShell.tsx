@@ -39,7 +39,7 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
       field: 'createdAt', headerName: 'Time', width: 150,
       renderCell: ({ value }) => new Date(value).toLocaleString(),
     },
-    { field: 'userName',     headerName: 'User',    width: 140 },
+    { field: 'userName',     headerName: 'User',        width: 140 },
     {
       field: 'action', headerName: 'Action', width: 100,
       renderCell: ({ value }) => (
@@ -52,7 +52,7 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }}>
       <Stack direction="row" gap={1}>
         <TextField
           size="small" placeholder="Search…"
@@ -74,15 +74,17 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
         </TextField>
       </Stack>
 
-      <DataGrid
-        rows={rows} columns={columns} getRowId={(r) => r._id}
-        rowCount={total} paginationMode="server"
-        pageSizeOptions={[50, 75, 100]}
-        paginationModel={{ page, pageSize }}
-        onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
-        disableRowSelectionOnClick
-        sx={{ border: 0 }}
-      />
+      <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+        <DataGrid
+          rows={rows} columns={columns} getRowId={(r) => r._id}
+          rowCount={total} paginationMode="server"
+          pageSizeOptions={[50, 75, 100]}
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
+          disableRowSelectionOnClick
+          sx={{ border: 0, flex: 1 }}
+        />
+      </Box>
     </Box>
   );
 }

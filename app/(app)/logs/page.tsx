@@ -12,8 +12,8 @@ export default async function LogsPage({ searchParams }: Props) {
   const { rows, total } = await getLogs({ page, pageSize, search: sp.search, action: sp.action });
 
   return (
-    <Box>
-      <Typography variant="subtitle1" fontWeight={700} mb={2}>Activity Logs</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
+      <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Activity Logs</Typography>
       <LogsShell rows={rows} total={total} page={page} pageSize={pageSize} />
     </Box>
   );

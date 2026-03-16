@@ -46,15 +46,13 @@ export function TicketsShell({ rows, total, page, pageSize, employees }: Props) 
     { field: 'reportedByName', headerName: 'Reported By', width: 150 },
     {
       field: 'status', headerName: 'Status', width: 120,
-      renderCell: ({ value }) => (
+      renderCell: ({ value, row }) => (
         <Chip
           label={value} size="small" color={STATUS_COLORS[value] ?? 'default'}
           sx={{ fontSize: '0.7rem', height: 20, cursor: 'pointer' }}
           onClick={() => {
             const next = value === 'Open' ? 'In-Progress' : value === 'In-Progress' ? 'Closed' : 'Open';
-            startTransition(async () => {
-              await updateTicketStatus((rows.find((r) => r.status === value)?._id ?? ''), next as 'Open' | 'In-Progress' | 'Closed');
-            });
+            startTransition(async () => { await updateTicketStatus(row._id, next as 'Open' | 'In-Progress' | 'Closed'); });
           }}
         />
       ),
@@ -84,7 +82,7 @@ export function TicketsShell({ rows, total, page, pageSize, employees }: Props) 
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Stack direction="row" gap={1}>
           <TextField
@@ -112,14 +110,16 @@ export function TicketsShell({ rows, total, page, pageSize, employees }: Props) 
         </Button>
       </Stack>
 
-      <DataGrid
-        rows={rows} columns={columns} getRowId={(r) => r._id}
-        rowCount={total} paginationMode="server"
-        pageSizeOptions={[50, 75, 100]}
-        paginationModel={{ page, pageSize }}
-        onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
-        sx={{ border: 0 }}
-      />
+      <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+        <DataGrid
+          rows={rows} columns={columns} getRowId={(r) => r._id}
+          rowCount={total} paginationMode="server"
+          pageSizeOptions={[50, 75, 100]}
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
+          sx={{ border: 0, flex: 1 }}
+        />
+      </Box>
 
       <TicketFormDialog
         open={dialogOpen} ticket={editing} employees={employees}

@@ -34,10 +34,10 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
   }
 
   const columns: GridColDef<SupplierRow>[] = [
-    { field: 'supplierName',    headerName: 'Supplier',        flex: 1, minWidth: 160 },
-    { field: 'contactPerson',   headerName: 'Contact',         width: 140 },
-    { field: 'email',           headerName: 'Email',           width: 180 },
-    { field: 'telephoneNumber', headerName: 'Phone',           width: 130 },
+    { field: 'supplierName',    headerName: 'Supplier',    flex: 1, minWidth: 160 },
+    { field: 'contactPerson',   headerName: 'Contact',     width: 140 },
+    { field: 'email',           headerName: 'Email',       width: 180 },
+    { field: 'telephoneNumber', headerName: 'Phone',       width: 130 },
     {
       field: 'categories', headerName: 'Categories', width: 200,
       renderCell: ({ value }) => (
@@ -69,7 +69,7 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <TextField
           size="small" placeholder="Search…"
@@ -84,14 +84,16 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
         </Button>
       </Stack>
 
-      <DataGrid
-        rows={rows} columns={columns} getRowId={(r) => r._id}
-        rowCount={total} paginationMode="server"
-        pageSizeOptions={[50, 75, 100]}
-        paginationModel={{ page, pageSize }}
-        onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
-        sx={{ border: 0 }}
-      />
+      <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+        <DataGrid
+          rows={rows} columns={columns} getRowId={(r) => r._id}
+          rowCount={total} paginationMode="server"
+          pageSizeOptions={[50, 75, 100]}
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
+          sx={{ border: 0, flex: 1 }}
+        />
+      </Box>
 
       <SupplierFormDialog
         open={dialogOpen} supplier={editing}

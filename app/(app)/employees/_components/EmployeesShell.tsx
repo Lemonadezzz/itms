@@ -2,14 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Button, Stack, TextField, InputAdornment } from '@mui/material';
-import { Add, Search } from '@mui/icons-material';
+import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip } from '@mui/material';
+import { Add, Search, Edit, Delete } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
 import { deleteEmployee } from '@/actions/employeeActions';
 import type { EmployeeRow } from '@/lib/data/employees';
-import { IconButton, Tooltip } from '@mui/material';
-import { Edit, Delete } from '@mui/icons-material';
 
 interface Props {
   rows: EmployeeRow[];
@@ -23,7 +21,6 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EmployeeRow | null>(null);
 
@@ -33,18 +30,13 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
     startTransition(() => router.push(`${pathname}?${params.toString()}`));
   }
 
-  function handleDelete(id: string) {
-    if (!confirm('Delete this employee?')) return;
-    startTransition(async () => { await deleteEmployee(id); });
-  }
-
   const columns: GridColDef<EmployeeRow>[] = [
     { field: 'employeeName', headerName: 'Name',       flex: 1, minWidth: 160 },
     { field: 'department',   headerName: 'Department', width: 150 },
     { field: 'userType',     headerName: 'User Type',  width: 120 },
     { field: 'location',     headerName: 'Location',   width: 120 },
     {
-      field: 'actions', headerName: 'Actions', width: 90, sortable: false,
+      field: 'actions', headerName: '', width: 80, sortable: false,
       renderCell: ({ row }) => (
         <Box>
           <Tooltip title="Edit">
@@ -53,7 +45,8 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDelete(row._id)}>
+            <IconButton size="small" color="error"
+              onClick={() => confirm('Delete this employee?') && startTransition(async () => { await deleteEmployee(row._id); })}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
@@ -63,7 +56,7 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <TextField
           size="small" placeholder="Search…"
@@ -78,22 +71,20 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
         </Button>
       </Stack>
 
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        getRowId={(r) => r._id}
-        rowCount={total}
-        paginationMode="server"
-        pageSizeOptions={[50, 75, 100]}
-        paginationModel={{ page, pageSize }}
-        onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
-        checkboxSelection
-        sx={{ border: 0 }}
-      />
+      <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+        <DataGrid
+          rows={rows} columns={columns} getRowId={(r) => r._id}
+          rowCount={total} paginationMode="server"
+          pageSizeOptions={[50, 75, 100]}
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
+          checkboxSelection
+          sx={{ border: 0, flex: 1 }}
+        />
+      </Box>
 
       <EmployeeFormDialog
-        open={dialogOpen}
-        employee={editing}
+        open={dialogOpen} employee={editing}
         onClose={() => { setDialogOpen(false); setEditing(null); }}
       />
     </Box>

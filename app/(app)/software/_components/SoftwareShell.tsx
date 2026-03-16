@@ -45,7 +45,7 @@ export function SoftwareShell({ rows, total, page, pageSize, suppliers }: Props)
   }
 
   const columns: GridColDef<SoftwareRow>[] = [
-    { field: 'softwareName',    headerName: 'Software',     flex: 1, minWidth: 160 },
+    { field: 'softwareName', headerName: 'Software', flex: 1, minWidth: 160 },
     {
       field: 'licenseType', headerName: 'License', width: 110,
       renderCell: ({ value }) => (
@@ -86,7 +86,7 @@ export function SoftwareShell({ rows, total, page, pageSize, suppliers }: Props)
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <TextField
           size="small" placeholder="Search…"
@@ -101,14 +101,16 @@ export function SoftwareShell({ rows, total, page, pageSize, suppliers }: Props)
         </Button>
       </Stack>
 
-      <DataGrid
-        rows={rows} columns={columns} getRowId={(r) => r._id}
-        rowCount={total} paginationMode="server"
-        pageSizeOptions={[50, 75, 100]}
-        paginationModel={{ page, pageSize }}
-        onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
-        sx={{ border: 0 }}
-      />
+      <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
+        <DataGrid
+          rows={rows} columns={columns} getRowId={(r) => r._id}
+          rowCount={total} paginationMode="server"
+          pageSizeOptions={[50, 75, 100]}
+          paginationModel={{ page, pageSize }}
+          onPaginationModelChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
+          sx={{ border: 0, flex: 1 }}
+        />
+      </Box>
 
       <SoftwareFormDialog
         open={dialogOpen} software={editing} suppliers={suppliers}

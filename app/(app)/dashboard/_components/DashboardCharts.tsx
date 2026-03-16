@@ -5,7 +5,7 @@ import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 
 const TYPE_COLORS: Record<string, string> = {
-  laptop: '#F05340',
+  laptop:  '#F05340',
   desktop: '#4085F0',
   display: '#269066',
 };
@@ -24,17 +24,17 @@ export function DashboardCharts({ byType, byLifecycle }: Props) {
   }));
 
   return (
-    <Grid container spacing={2}>
+    <Grid container spacing={2} sx={{ flex: 1 }}>
       <Grid size={{ xs: 12, md: 5 }}>
-        <Card>
-          <CardContent>
+        <Card sx={{ height: '100%' }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
               Assets by Type
             </Typography>
-            <Box sx={{ mt: 1 }}>
+            <Box sx={{ flex: 1, minHeight: 220, mt: 1 }}>
               <PieChart
                 series={[{ data: pieData, innerRadius: 50, paddingAngle: 2, cornerRadius: 4 }]}
-                height={220}
+                height={260}
                 slotProps={{ legend: { direction: 'row', position: { vertical: 'bottom', horizontal: 'middle' } } as object }}
               />
             </Box>
@@ -43,20 +43,16 @@ export function DashboardCharts({ byType, byLifecycle }: Props) {
       </Grid>
 
       <Grid size={{ xs: 12, md: 7 }}>
-        <Card>
-          <CardContent>
+        <Card sx={{ height: '100%' }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
               Assets by Lifecycle Stage
             </Typography>
-            <Box sx={{ mt: 1 }}>
+            <Box sx={{ flex: 1, minHeight: 220, mt: 1 }}>
               <BarChart
                 xAxis={[{ scaleType: 'band', data: byLifecycle.map((l) => l.stage) }]}
-                series={[{
-                  data: byLifecycle.map((l) => l.count),
-                  color: '#F05340',
-                  label: 'Assets',
-                }]}
-                height={220}
+                series={[{ data: byLifecycle.map((l) => l.count), color: '#F05340', label: 'Assets' }]}
+                height={260}
                 margin={{ top: 10, bottom: 30, left: 30, right: 10 }}
               />
             </Box>

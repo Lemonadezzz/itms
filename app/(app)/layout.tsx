@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
+import { Box } from '@mui/material';
 import { Sidebar } from '@/components/layout/Sidebar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -7,9 +8,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session) redirect('/login');
 
   return (
-    <div className="flex min-h-screen">
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <main className="flex-1 overflow-auto p-4">{children}</main>
-    </div>
+      <Box
+        component="main"
+        sx={{ flex: 1, overflow: 'auto', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}
+      >
+        {children}
+      </Box>
+    </Box>
   );
 }

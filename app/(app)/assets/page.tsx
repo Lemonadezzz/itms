@@ -18,17 +18,18 @@ export default async function AssetsPage({ searchParams }: Props) {
 
   const [{ rows, total }, employees] = await Promise.all([
     getAssets({ page, pageSize, sortField, sortDir, filters: {
-      search:     sp.search,
-      assetType:  sp.assetType,
-      isAssigned: sp.isAssigned,
-      location:   sp.location,
+      search:       sp.search,
+      assetType:    sp.assetType,
+      isAssigned:   sp.isAssigned,
+      location:     sp.location,
+      assignedToId: sp.assignedToId,
     }}),
     getEmployeeOptions(),
   ]);
 
   return (
-    <Box>
-      <Typography variant="subtitle1" fontWeight={700} mb={2}>Hardware Assets</Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
+      <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Hardware Assets</Typography>
       <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>}>
         <AssetsShell
           rows={rows}
