@@ -48,7 +48,7 @@ export function DashboardCharts({ byLifecycle, byCostPerDepartment }: Props) {
             <Box sx={{ flex: 1, minHeight: 0, mt: 1 }}>
               <BarChart
                 yAxis={[{ scaleType: 'band', data: byCostPerDepartment.map((d) => d.department), tickLabelStyle: { fontSize: 10 } }]}
-                xAxis={[{ valueFormatter: (v) => phpFormat(v as number), tickLabelStyle: { fontSize: 9 } }]}
+                xAxis={[{ valueFormatter: (v: number) => phpFormat(v), tickLabelStyle: { fontSize: 9 } }]}
                 series={[{ data: byCostPerDepartment.map((d) => d.cost), color: '#F05340', label: 'Cost' }]}
                 layout="horizontal"
                 height={290}

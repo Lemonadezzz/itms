@@ -6,6 +6,7 @@ import { connectDB } from '@/lib/db/mongoose';
 import { Asset } from '@/models/Asset';
 import { CreateAssetSchema, AssignAssetSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
+import { Types } from 'mongoose';
 import type { ActionResult } from '@/types';
 
 async function getActor() {
@@ -46,6 +47,7 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
   const { employeeId, employeeName, assignedDate, notes } = parsed.data;
+  const empObjectId = new Types.ObjectId(employeeId);
 
   await connectDB();
   const asset = await Asset.findById(assetId);
@@ -61,8 +63,8 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
     });
   }
 
-  asset.currentAssignment = { employeeId, assignedDate, notes };
-  asset.assignmentHistory.push({ employeeId, employeeName, assignedDate, notes });
+  asset.currentAssignment = { employeeId: empObjectId, assignedDate, notes };
+  asset.assignmentHistory.push({ employeeId: empObjectId, employeeName, assignedDate, notes });
   await asset.save();
 
   const { userId, userName } = await getActor();
