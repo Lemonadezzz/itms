@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
-import { Box, Card, CardContent, CircularProgress, Grid, Typography } from '@mui/material';
+import { Box, Card, CardContent, Grid, Typography } from '@mui/material';
 import { Inventory, AttachMoney, CheckCircle, RadioButtonUnchecked } from '@mui/icons-material';
 import { getDashboardStats } from '@/lib/data/dashboard';
-import { DashboardCharts } from './_components/DashboardCharts';
+import { DashboardChartsLazy } from './_components/DashboardChartsLazy';
 
 const phpFormat = (v: number) =>
   new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(v);
@@ -35,7 +35,7 @@ async function DashboardContent() {
         ))}
       </Grid>
 
-      <DashboardCharts byLifecycle={stats.byLifecycle} byCostPerDepartment={stats.byCostPerDepartment} />
+      <DashboardChartsLazy byLifecycle={stats.byLifecycle} byCostPerDepartment={stats.byCostPerDepartment} />
     </Box>
   );
 }
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2, overflow: 'auto' }}>
       <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Dashboard</Typography>
-      <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>}>
+      <Suspense>
         <DashboardContent />
       </Suspense>
     </Box>

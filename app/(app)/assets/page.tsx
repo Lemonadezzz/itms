@@ -1,5 +1,4 @@
-import { Suspense } from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { getAssets } from '@/lib/data/assets';
 import { getEmployeeOptions } from '@/lib/data/employees';
 import { AssetsShell } from './_components/AssetsShell';
@@ -30,8 +29,7 @@ export default async function AssetsPage({ searchParams }: Props) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
       <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Hardware Assets</Typography>
-      <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>}>
-        <AssetsShell
+      <AssetsShell
           rows={rows}
           total={total}
           page={page}
@@ -40,7 +38,6 @@ export default async function AssetsPage({ searchParams }: Props) {
           sortDir={sortDir}
           employees={employees}
         />
-      </Suspense>
     </Box>
   );
 }
