@@ -17,23 +17,23 @@ import {
 import { useColorMode } from '@/theme/ThemeProvider';
 import { ProfileDialog } from './ProfileDialog';
 
-const EXPANDED  = 240;
+const EXPANDED = 240;
 const COLLAPSED = 60;
-const ICON_COL  = 36;
+const ICON_COL = 36;
 
 const navItems = [
-  { text: 'Dashboard',  href: '/dashboard',  icon: <Dashboard          fontSize="small" /> },
-  { text: 'Hardware',   href: '/assets',      icon: <Inventory          fontSize="small" /> },
-  { text: 'Employees',  href: '/employees',   icon: <People             fontSize="small" /> },
-  { text: 'Tickets',    href: '/tickets',     icon: <ConfirmationNumber fontSize="small" /> },
-  { text: 'Software',   href: '/software',    icon: <Computer           fontSize="small" /> },
-  { text: 'Suppliers',  href: '/suppliers',   icon: <Business           fontSize="small" /> },
-  { text: 'Calculator', href: '/calculator',  icon: <Calculate          fontSize="small" /> },
-  { text: 'Logs',       href: '/logs',        icon: <History            fontSize="small" /> },
+  { text: 'Dashboard', href: '/dashboard', icon: <Dashboard fontSize="small" /> },
+  { text: 'Hardware', href: '/assets', icon: <Inventory fontSize="small" /> },
+  { text: 'Employees', href: '/employees', icon: <People fontSize="small" /> },
+  { text: 'Tickets', href: '/tickets', icon: <ConfirmationNumber fontSize="small" /> },
+  { text: 'Software', href: '/software', icon: <Computer fontSize="small" /> },
+  { text: 'Suppliers', href: '/suppliers', icon: <Business fontSize="small" /> },
+  { text: 'Calculator', href: '/calculator', icon: <Calculate fontSize="small" /> },
+  { text: 'Logs', href: '/logs', icon: <History fontSize="small" /> },
 ];
 
 function avatarColor(name: string) {
-  const colors = ['#F05340','#4085F0','#269066','#8b5cf6','#eab308','#f97316'];
+  const colors = ['#F05340', '#4085F0', '#269066', '#8b5cf6', '#eab308', '#f97316'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
@@ -44,16 +44,16 @@ function initials(name: string) {
 }
 
 export function Sidebar() {
-  const [open, setOpen]           = useState(true);
+  const [open, setOpen] = useState(true);
   const [profileOpen, setProfile] = useState(false);
-  const pathname                  = usePathname();
-  const { toggle, mode }          = useColorMode();
-  const { data: session }         = useSession();
-  const width                     = open ? EXPANDED : COLLAPSED;
+  const pathname = usePathname();
+  const { toggle, mode } = useColorMode();
+  const { data: session } = useSession();
+  const width = open ? EXPANDED : COLLAPSED;
 
-  const userName  = session?.user?.name  ?? '—';
+  const userName = session?.user?.name ?? '—';
   const userEmail = session?.user?.email ?? '—';
-  const bgColor   = avatarColor(userName);
+  const bgColor = avatarColor(userName);
 
   const itemSx = {
     minHeight: 40,
@@ -96,7 +96,7 @@ export function Sidebar() {
           {open && (
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, pl: 1 }}>
               <Typography fontWeight={800} sx={{ color: '#F05340', fontSize: '0.95rem', lineHeight: 1 }}>ITMS</Typography>
-              <Typography sx={{ color: 'text.disabled', fontSize: '0.62rem', lineHeight: 1 }}>v0.1.0 alpha</Typography>
+              <Typography sx={{ color: 'text.disabled', fontSize: '0.62rem', lineHeight: 1 }}>v0.8.0 alpha</Typography>
             </Box>
           )}
           <IconButton onClick={() => setOpen((v) => !v)} size="small">
