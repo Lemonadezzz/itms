@@ -7,7 +7,7 @@ export type EmployeeRow = {
   department: string;
   userType: string;
   location: string;
-  hireDate?: string;
+  hiredAt?: string;
 };
 
 export async function getEmployees({
@@ -41,7 +41,7 @@ export async function getEmployees({
       department: e.department,
       userType: e.userType,
       location: e.location,
-      hireDate: e.hireDate?.toISOString(),
+      hiredAt: (e.hiredAt || (e as any).hireDate)?.toISOString(),
     })),
     total,
   };

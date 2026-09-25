@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, MenuItem, Grid, Alert, CircularProgress,
+  FormControlLabel, Checkbox
 } from '@mui/material';
 import { createAsset, updateAsset } from '@/actions/assetActions';
 import type { AssetRow } from '@/types';
@@ -16,7 +17,8 @@ interface Props {
 
 export function AssetFormDialog({ open, asset, onClose }: Props) {
   const [error, setError] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [isPendingCheckbox, setIsPendingCheckbox] = useState(false);
+  const [isPendingSubmit, startTransition] = useTransition();
   const isEdit = !!asset;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -58,11 +60,19 @@ export function AssetFormDialog({ open, asset, onClose }: Props) {
               <TextField name="location" label="Location" size="small" required fullWidth
                 defaultValue={asset?.location ?? ''} />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
-                InputLabelProps={{ shrink: true }}
-                defaultValue={asset?.acquisitionDate ? asset.acquisitionDate.split('T')[0] : ''} />
+            <Grid size={{ xs: 12 }}>
+              <FormControlLabel
+                control={<Checkbox name="isPendingDelivery" checked={isPendingCheckbox} onChange={(e) => setIsPendingCheckbox(e.target.checked)} />}
+                label="Item is Pending Delivery (Not Yet Received)"
+              />
             </Grid>
+            {!isPendingCheckbox && (
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  defaultValue={asset?.acquisitionDate ? asset.acquisitionDate.split('T')[0] : ''} />
+              </Grid>
+            )}
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="acquisitionCost" label="Cost (PHP)" type="number" size="small" required fullWidth
                 inputProps={{ min: 0, step: 0.01 }}
@@ -81,8 +91,8 @@ export function AssetFormDialog({ open, asset, onClose }: Props) {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button size="small" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" size="small" disabled={isPending}
-            startIcon={isPending ? <CircularProgress size={12} color="inherit" /> : null}>
+          <Button type="submit" variant="contained" size="small" disabled={isPendingSubmit}
+            startIcon={isPendingSubmit ? <CircularProgress size={12} color="inherit" /> : null}>
             {isEdit ? 'Update' : 'Save'}
           </Button>
         </DialogActions>

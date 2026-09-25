@@ -1,7 +1,7 @@
 export type AssetAssignmentHistory = {
   employeeName: string;
-  assignedDate: string;
-  returnedDate?: string;
+  assignedAt: string;
+  returnedAt?: string;
   notes?: string;
 };
 
@@ -16,6 +16,7 @@ export type AssetRow = {
   ageInMonths: number;
   assignedTo?: string;
   isAssigned: boolean;
+  status?: string;
   depreciationMethod?: string;
   assignmentHistory: AssetAssignmentHistory[];
 };

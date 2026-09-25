@@ -10,6 +10,7 @@ import { AssetFiltersBar } from './AssetFiltersBar';
 import { AssetFormDialog } from './AssetFormDialog';
 import { AssignDialog } from './AssignDialog';
 import { AssetDetailDialog } from './AssetDetailDialog';
+import { ConfirmDeliveryDialog } from './ConfirmDeliveryDialog';
 import { returnAsset, deleteAsset } from '@/actions/assetActions';
 import type { AssetRow } from '@/types';
 
@@ -33,6 +34,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   const [editTarget, setEditTarget]     = useState<AssetRow | null>(null);
   const [assignTarget, setAssignTarget] = useState<AssetRow | null>(null);
   const [detailTarget, setDetailTarget] = useState<AssetRow | null>(null);
+  const [confirmDeliveryTarget, setConfirmDeliveryTarget] = useState<AssetRow | null>(null);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -71,12 +73,14 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           onReturn={handleReturn}
           onEdit={(row) => setEditTarget(row)}
           onDelete={handleDelete}
+          onConfirmDelivery={(row) => setConfirmDeliveryTarget(row)}
         />
       </Box>
 
       {detailTarget && (
         <AssetDetailDialog
           asset={detailTarget}
+          employees={employees}
           onClose={() => setDetailTarget(null)}
         />
       )}
@@ -92,6 +96,13 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           asset={assignTarget}
           employees={employees}
           onClose={() => setAssignTarget(null)}
+        />
+      )}
+      
+      {confirmDeliveryTarget && (
+        <ConfirmDeliveryDialog
+          asset={confirmDeliveryTarget}
+          onClose={() => setConfirmDeliveryTarget(null)}
         />
       )}
     </Box>

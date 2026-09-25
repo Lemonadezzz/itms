@@ -20,8 +20,8 @@ type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
   };
   assignmentHistory: {
     employeeName: string;
-    assignedDate: Date;
-    returnedDate?: Date;
+    assignedAt: Date;
+    returnedAt?: Date;
     notes?: string;
   }[];
 };
@@ -71,9 +71,9 @@ export async function getAssets({
   const now = Date.now();
 
   const rows: AssetRow[] = docs.map((a) => {
-    const ageInMonths = Math.floor(
+    const ageInMonths = a.acquisitionDate ? Math.floor(
       (now - new Date(a.acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
-    );
+    ) : 0;
     const emp = a.currentAssignment?.employeeId as { employeeName?: string } | null | undefined;
     return {
       _id: a._id.toString(),
@@ -81,16 +81,17 @@ export async function getAssets({
       assetName: a.assetName,
       assetType: a.assetType,
       location: a.location,
-      acquisitionDate: new Date(a.acquisitionDate).toISOString(),
+      acquisitionDate: a.acquisitionDate ? new Date(a.acquisitionDate).toISOString() : '',
       acquisitionCost: a.acquisitionCost,
       ageInMonths,
       assignedTo: emp?.employeeName,
       isAssigned: !!a.currentAssignment,
+      status: a.status,
       depreciationMethod: a.depreciationMethod,
       assignmentHistory: (a.assignmentHistory ?? []).map((h): AssetAssignmentHistory => ({
         employeeName: h.employeeName,
-        assignedDate: new Date(h.assignedDate).toISOString(),
-        returnedDate: h.returnedDate ? new Date(h.returnedDate).toISOString() : undefined,
+        assignedAt: new Date(h.assignedAt || (h as any).assignedDate).toISOString(),
+        returnedAt: (h.returnedAt || (h as any).returnedDate) ? new Date(h.returnedAt || (h as any).returnedDate).toISOString() : undefined,
         notes: h.notes,
       })),
     };
@@ -98,3 +99,46 @@ export async function getAssets({
 
   return { rows, total };
 }
+
+export async function getAssetById(id: string): Promise<AssetRow | null> {
+  await connectDB();
+  let doc: LeanAsset | null;
+  try {
+    doc = await Asset.findById(id)
+      .populate('currentAssignment.employeeId', 'employeeName')
+      .lean() as unknown as LeanAsset | null;
+  } catch {
+    return null;
+  }
+  if (!doc) return null;
+
+  const now = Date.now();
+  const ageInMonths = doc.acquisitionDate ? Math.floor(
+    (now - new Date(doc.acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+  ) : 0;
+  const emp = doc.currentAssignment?.employeeId as { employeeName?: string } | null | undefined;
+
+  return {
+    _id: doc._id.toString(),
+    assetCode: doc.assetCode,
+    assetName: doc.assetName,
+    assetType: doc.assetType,
+    location: doc.location,
+    acquisitionDate: doc.acquisitionDate ? new Date(doc.acquisitionDate).toISOString() : '',
+    acquisitionCost: doc.acquisitionCost,
+    ageInMonths,
+    assignedTo: emp?.employeeName,
+    isAssigned: !!doc.currentAssignment,
+    status: doc.status,
+    depreciationMethod: doc.depreciationMethod,
+    assignmentHistory: (doc.assignmentHistory ?? []).map((h): AssetAssignmentHistory => ({
+      employeeName: h.employeeName,
+      assignedAt: new Date(h.assignedAt || (h as any).assignedDate).toISOString(),
+      returnedAt: (h.returnedAt || (h as any).returnedDate)
+        ? new Date(h.returnedAt || (h as any).returnedDate).toISOString()
+        : undefined,
+      notes: h.notes,
+    })),
+  };
+}
+

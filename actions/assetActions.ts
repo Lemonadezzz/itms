@@ -22,9 +22,18 @@ export async function createAsset(formData: unknown): Promise<ActionResult<strin
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
   await connectDB();
-  const asset = await Asset.create(parsed.data);
+  const { isPendingDelivery, ...data } = parsed.data;
+  const isPending = isPendingDelivery === 'on' || isPendingDelivery === 'true';
+  const assetData = {
+    ...data,
+    status: isPending ? 'Pending Delivery' : 'In Stock',
+    acquisitionDate: isPending ? undefined : data.acquisitionDate,
+  };
+
+  const asset = await Asset.create(assetData);
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'create', description: `Created asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: asset._id.toString() });
+  const actionName = isPending ? 'PRE_DELIVERY_INTAKE' : 'create';
+  await writeLog({ userId, userName, action: actionName as any, description: `Created asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: asset._id.toString() });
   revalidatePath('/assets');
   return { success: true, data: asset._id.toString() };
 }
@@ -46,7 +55,7 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
   const parsed = AssignAssetSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
-  const { employeeId, employeeName, assignedDate, notes } = parsed.data;
+  const { employeeId, employeeName, assignedAt, notes } = parsed.data;
   const empObjectId = new Types.ObjectId(employeeId);
 
   await connectDB();
@@ -57,14 +66,14 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
     asset.assignmentHistory.push({
       employeeId: asset.currentAssignment.employeeId,
       employeeName: '',
-      assignedDate: asset.currentAssignment.assignedDate,
-      returnedDate: new Date(),
+      assignedAt: asset.currentAssignment.assignedDate,
+      returnedAt: new Date(),
       notes: asset.currentAssignment.notes,
     });
   }
 
-  asset.currentAssignment = { employeeId: empObjectId, assignedDate, notes };
-  asset.assignmentHistory.push({ employeeId: empObjectId, employeeName, assignedDate, notes });
+  asset.currentAssignment = { employeeId: empObjectId, assignedDate: assignedAt, notes };
+  asset.assignmentHistory.push({ employeeId: empObjectId, employeeName, assignedAt, notes });
   await asset.save();
 
   const { userId, userName } = await getActor();
@@ -80,7 +89,7 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
   if (!asset.currentAssignment) return { success: false, error: 'Asset is not assigned' };
 
   const last = asset.assignmentHistory.at(-1);
-  if (last && !last.returnedDate) last.returnedDate = returnedDate;
+  if (last && !last.returnedAt) last.returnedAt = returnedDate;
   asset.currentAssignment = undefined;
   await asset.save();
 
@@ -96,6 +105,117 @@ export async function deleteAsset(id: string): Promise<ActionResult> {
   if (!asset) return { success: false, error: 'Asset not found' };
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'delete', description: `Deleted asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: id });
+  revalidatePath('/assets');
+  return { success: true, data: undefined };
+}
+export async function confirmDelivery(assetId: string, acquisitionDate: string): Promise<ActionResult> {
+  await connectDB();
+  const asset = await Asset.findById(assetId);
+  if (!asset) return { success: false, error: 'Asset not found' };
+
+  asset.status = 'In Stock';
+  asset.deliveredAt = new Date();
+  if (acquisitionDate) asset.acquisitionDate = new Date(acquisitionDate);
+  await asset.save();
+
+  const { userId, userName } = await getActor();
+  await writeLog({ userId, userName, action: 'DELIVERY_CONFIRMED' as any, description: `Delivery confirmed for asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: assetId });
+  revalidatePath('/assets');
+  return { success: true, data: undefined };
+}
+
+export async function transferAsset(assetId: string, newEmployeeId: string, notes?: string): Promise<ActionResult> {
+  await connectDB();
+  const asset = await Asset.findById(assetId);
+  if (!asset) return { success: false, error: 'Asset not found' };
+
+  // close current assignment if exists
+  if (asset.currentAssignment) {
+    asset.assignmentHistory.push({
+      employeeId: asset.currentAssignment.employeeId,
+      employeeName: '',
+      assignedAt: asset.currentAssignment.assignedDate,
+      returnedAt: new Date(),
+      notes: asset.currentAssignment.notes,
+    });
+  }
+
+  const empObjId = new Types.ObjectId(newEmployeeId);
+  // create new assignment
+  asset.currentAssignment = { employeeId: empObjId, assignedDate: new Date(), notes };
+  asset.assignmentHistory.push({ employeeId: empObjId, employeeName: '', assignedAt: new Date(), notes });
+  asset.status = 'In Use';
+  await asset.save();
+
+  const { userId, userName } = await getActor();
+  await writeLog({ userId, userName, action: 'ASSET_TRANSFER' as any, description: `Transferred asset ${asset.assetCode} to employee ${newEmployeeId}`, relatedModel: 'Asset', relatedId: assetId });
+  revalidatePath('/assets');
+  return { success: true, data: undefined };
+}
+
+export async function markForRepair(assetId: string, issueDescription: string): Promise<ActionResult> {
+  await connectDB();
+  const asset = await Asset.findById(assetId);
+  if (!asset) return { success: false, error: 'Asset not found' };
+
+  // close current assignment if any
+  if (asset.currentAssignment) {
+    asset.assignmentHistory.push({
+      employeeId: asset.currentAssignment.employeeId,
+      employeeName: '',
+      assignedAt: asset.currentAssignment.assignedDate,
+      returnedAt: new Date(),
+      notes: asset.currentAssignment.notes,
+    });
+    asset.currentAssignment = undefined;
+  }
+
+  asset.status = 'Under Repair';
+  await asset.save();
+
+  const { userId, userName } = await getActor();
+  await writeLog({ userId, userName, action: 'ASSET_MAINTENANCE_START' as any, description: `Asset ${asset.assetCode} marked for repair: ${issueDescription}`, relatedModel: 'Asset', relatedId: assetId });
+  revalidatePath('/assets');
+  return { success: true, data: undefined };
+}
+
+export async function completeRepair(assetId: string, resolutionNotes?: string): Promise<ActionResult> {
+  await connectDB();
+  const asset = await Asset.findById(assetId);
+  if (!asset) return { success: false, error: 'Asset not found' };
+
+  asset.status = 'In Stock';
+  await asset.save();
+
+  const { userId, userName } = await getActor();
+  await writeLog({ userId, userName, action: 'ASSET_MAINTENANCE_END' as any, description: `Repair completed for asset ${asset.assetCode}. ${resolutionNotes ?? ''}`, relatedModel: 'Asset', relatedId: assetId });
+  revalidatePath('/assets');
+  return { success: true, data: undefined };
+}
+
+export async function decommissionAsset(assetId: string, reason: string): Promise<ActionResult> {
+  await connectDB();
+  const asset = await Asset.findById(assetId);
+  if (!asset) return { success: false, error: 'Asset not found' };
+
+  // close current assignment if any
+  if (asset.currentAssignment) {
+    asset.assignmentHistory.push({
+      employeeId: asset.currentAssignment.employeeId,
+      employeeName: '',
+      assignedAt: asset.currentAssignment.assignedDate,
+      returnedAt: new Date(),
+      notes: asset.currentAssignment.notes,
+    });
+    asset.currentAssignment = undefined;
+  }
+
+  asset.status = 'Decommissioned';
+  asset.isDeleted = true;
+  await asset.save();
+
+  const { userId, userName } = await getActor();
+  await writeLog({ userId, userName, action: 'ASSET_DECOMMISSION' as any, description: `Decommissioned asset ${asset.assetCode}: ${reason}`, relatedModel: 'Asset', relatedId: assetId });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { DataGrid, GridColDef, GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
-import { Chip, Box, IconButton, Tooltip } from '@mui/material';
+import { Chip, Box, IconButton, Tooltip, Button } from '@mui/material';
 import { AssignmentInd, AssignmentReturn, Edit, Delete, Visibility } from '@mui/icons-material';
 import type { AssetRow, PaginationParams } from '@/types';
 
@@ -42,12 +42,13 @@ interface AssetTableProps {
   onReturn?: (row: AssetRow) => void;
   onEdit?:   (row: AssetRow) => void;
   onDelete?: (row: AssetRow) => void;
+  onConfirmDelivery?: (row: AssetRow) => void;
   loading?: boolean;
 }
 
 export function AssetTable({
   rows, rowCount, pagination, onPaginationChange, onSortChange,
-  onDetail, onAssign, onReturn, onEdit, onDelete, loading,
+  onDetail, onAssign, onReturn, onEdit, onDelete, onConfirmDelivery, loading,
 }: AssetTableProps) {
   const columns: GridColDef<AssetRow>[] = [
     { field: 'assetCode', headerName: 'Code',     width: 100 },
@@ -112,6 +113,11 @@ export function AssetTable({
                 <Edit sx={{ fontSize: 15 }} />
               </IconButton>
             </Tooltip>
+          )}
+          {row.status === 'Pending Delivery' && onConfirmDelivery && (
+            <Button size="small" onClick={() => onConfirmDelivery(row)} sx={{ fontSize: '0.65rem', minWidth: 'auto', px: 1 }}>
+              Confirm Delivery
+            </Button>
           )}
           {onDelete && (
             <Tooltip title="Delete">

@@ -1,6 +1,6 @@
 import { Schema, model, models, Document, Types } from 'mongoose';
 
-export const LOG_ACTIONS = ['create', 'update', 'delete', 'assign', 'return'] as const;
+export const LOG_ACTIONS = ['create', 'update', 'delete', 'assign', 'return', 'PRE_DELIVERY_INTAKE', 'CONFIRM_DELIVERY', 'ASSET_TRANSFER', 'ASSET_MAINTENANCE_START', 'ASSET_MAINTENANCE_END', 'ASSET_DECOMMISSION'] as const;
 export type LogAction = (typeof LOG_ACTIONS)[number];
 
 export interface IActivityLog extends Document {

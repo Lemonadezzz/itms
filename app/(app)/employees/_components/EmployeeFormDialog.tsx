@@ -63,9 +63,9 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
                 defaultValue={employee?.location ?? ''} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="hireDate" label="Hire Date" type="date" size="small" fullWidth
+              <TextField name="hiredAt" label="Hire Date" type="date" size="small" fullWidth
                 InputLabelProps={{ shrink: true }}
-                defaultValue={employee?.hireDate ? employee.hireDate.split('T')[0] : ''} />
+                defaultValue={employee?.hiredAt ? employee.hiredAt.split('T')[0] : ''} />
             </Grid>
           </Grid>
         </DialogContent>
