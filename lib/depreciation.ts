@@ -6,28 +6,58 @@ const YEARLY_RATES: Record<number, number> = {
   5: 0.025,
 };
 
-function buildMonthlyRates(): Record<number, number> {
-  const rates: Record<number, number> = {};
-  let index = 1;
-  for (const yearRate of Object.values(YEARLY_RATES)) {
-    const monthly = yearRate / 12;
-    for (let i = 0; i < 12; i++) rates[index++] = monthly;
+// Fixed reference date to prevent hydration mismatch
+const REFERENCE_DATE = new Date('2025-01-01T00:00:00.000Z').getTime();
+
+/**
+ * Calculates the exact remaining value multiplier (0.0 to 1.0)
+ * based on the company's custom laptop depreciation rules:
+ * - Months 1-35: Continuous reduction at (0.75 / 36) per month
+ * - Month 36: Catch-up adjustment to land at exactly 10% (0.10)
+ * - Months 37-48: Continuous reduction from 10% to 2.5% at (0.075 / 12) per month
+ * - Months 49-60: Continuous reduction from 2.5% to 0% at (0.025 / 12) per month
+ */
+function getRemainingRatio(monthNumber: number): number {
+  if (monthNumber <= 0) return 1.0;
+  if (monthNumber >= 60) return 0.0;
+
+  if (monthNumber <= 35) {
+    // Phase 1: Months 1 to 35
+    const monthlyRate = 0.75 / 36;
+    return 1.0 - monthNumber * monthlyRate;
   }
-  return rates;
+
+  if (monthNumber === 36) {
+    // Phase 2: Month 36 catch-up adjustment to 10% target
+    return 0.10;
+  }
+
+  if (monthNumber <= 48) {
+    // Phase 3: Months 37 to 48 (Year 4 linear drop from 10% to 2.5%)
+    const monthsInPhase = monthNumber - 36;
+    const monthlyRate = 0.075 / 12;
+    return 0.10 - monthsInPhase * monthlyRate;
+  }
+
+  // Phase 4: Months 49 to 60 (Year 5 linear drop from 2.5% to 0%)
+  const monthsInPhase = monthNumber - 48;
+  const monthlyRate = 0.025 / 12;
+  return 0.025 - monthsInPhase * monthlyRate;
 }
 
 export function calculateCurrentValue(acquisitionCost: number, acquisitionDate: string): number {
+  // Client-side calculation uses current time, server-side uses fixed reference
+  const isServer = typeof window === 'undefined';
+  const now = isServer ? REFERENCE_DATE : Date.now();
   const monthsElapsed = Math.floor(
-    (Date.now() - new Date(acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+    (now - new Date(acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
   );
   if (monthsElapsed >= 60) return 0;
 
-  const rates = buildMonthlyRates();
   const monthNumber = monthsElapsed + 1;
-  let totalDepreciation = 0;
-  for (let i = 1; i <= monthNumber && i <= 60; i++) totalDepreciation += rates[i] ?? 0;
+  const ratio = getRemainingRatio(monthNumber);
 
-  return Math.max(Math.round(acquisitionCost * (1 - totalDepreciation) * 100) / 100, 0);
+  return Math.max(Math.round(acquisitionCost * ratio * 100) / 100, 0);
 }
 
 export function isFullyDepreciated(acquisitionCost: number, acquisitionDate: string): boolean {
@@ -46,11 +76,13 @@ export function getMonthlyDepreciationSchedule(
   acquisitionDate: string
 ): DepreciationMonthRow[] {
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const rates = buildMonthlyRates();
   const acqDate = new Date(acquisitionDate);
 
+  // Client-side calculation uses current time, server-side uses fixed reference
+  const isServer = typeof window === 'undefined';
+  const now = isServer ? REFERENCE_DATE : Date.now();
   const monthsElapsed = Math.floor(
-    (Date.now() - acqDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+    (now - acqDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
   );
   const fullyDepreciated = monthsElapsed >= 60;
   const currentYear = fullyDepreciated ? null : Math.min(Math.floor(monthsElapsed / 12) + 1, 5);
@@ -63,9 +95,8 @@ export function getMonthlyDepreciationSchedule(
 
     const yearValues = [1, 2, 3, 4, 5].map((year) => {
       const monthNumber = (year - 1) * 12 + month + 1;
-      let total = 0;
-      for (let i = 1; i <= monthNumber && i <= 60; i++) total += rates[i] ?? 0;
-      return Math.max(Math.round(acquisitionCost * (1 - total) * 100) / 100, 0);
+      const ratio = getRemainingRatio(monthNumber);
+      return Math.max(Math.round(acquisitionCost * ratio * 100) / 100, 0);
     });
 
     return {

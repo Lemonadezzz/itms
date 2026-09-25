@@ -3,10 +3,12 @@
 import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip } from '@mui/material';
-import { Add, Search, Edit, Delete } from '@mui/icons-material';
+import { Add, Search, Edit, Delete, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
-import { deleteEmployee } from '@/actions/employeeActions';
+import { deleteEmployee, offboardEmployee } from '@/actions/employeeActions';
+import { OffboardEmployeeModal } from './OffboardEmployeeModal';
+import { reactivateEmployee } from '@/actions/employeeActions';
 import type { EmployeeRow } from '@/lib/data/employees';
 
 interface Props {
@@ -23,6 +25,10 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EmployeeRow | null>(null);
+  const [offboardOpen, setOffboardOpen] = useState(false);
+  const [offboardingEmployeeId, setOffboardingEmployeeId] = useState<string | null>(null);
+  const [offboardingEmployeeName, setOffboardingEmployeeName] = useState<string>('');
+  const [isOffboardAction, setIsOffboardAction] = useState(true);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -30,13 +36,21 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
     startTransition(() => router.push(`${pathname}?${params.toString()}`));
   }
 
+  const handleAction = (row: EmployeeRow, isOffboard: boolean) => {
+    setIsOffboardAction(isOffboard);
+    setOffboardingEmployeeId(row._id);
+    setOffboardingEmployeeName(row.employeeName);
+    setOffboardOpen(true);
+  };
+
   const columns: GridColDef<EmployeeRow>[] = [
     { field: 'employeeName', headerName: 'Name',       flex: 1, minWidth: 160 },
     { field: 'department',   headerName: 'Department', width: 150 },
     { field: 'userType',     headerName: 'User Type',  width: 120 },
     { field: 'location',     headerName: 'Location',   width: 120 },
+    { field: 'status',       headerName: 'Status',     width: 100 },
     {
-      field: 'actions', headerName: '', width: 80, sortable: false,
+      field: 'actions', headerName: '', width: 140, sortable: false,
       renderCell: ({ row }) => (
         <Box>
           <Tooltip title="Edit">
@@ -44,19 +58,27 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
               <Edit sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error"
-              onClick={() => confirm('Delete this employee?') && startTransition(async () => { await deleteEmployee(row._id); })}>
-              <Delete sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
+          {row.status === 'Active' ? (
+            <Tooltip title="Inactivate">
+              <IconButton size="small" color="error"
+                onClick={() => handleAction(row, true)}>
+                <PersonRemove sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Reactivate">
+              <IconButton size="small" color="success" onClick={() => handleAction(row, false)}>
+                <TransferWithinAStation sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       ),
     },
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }} suppressHydrationWarning>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <TextField
           size="small" placeholder="Search…"
@@ -86,6 +108,15 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
       <EmployeeFormDialog
         open={dialogOpen} employee={editing}
         onClose={() => { setDialogOpen(false); setEditing(null); }}
+      />
+
+      <OffboardEmployeeModal
+        key={offboardingEmployeeId}
+        open={offboardOpen}
+        employeeId={offboardingEmployeeId ?? ''}
+        employeeName={offboardingEmployeeName}
+        isOffboard={isOffboardAction}
+        onClose={() => { setOffboardOpen(false); setOffboardingEmployeeId(null); setOffboardingEmployeeName(''); setIsOffboardAction(true); }}
       />
     </Box>
   );

@@ -12,17 +12,30 @@ interface Props {
   asset: AssetRow;
   employees: { _id: string; employeeName: string }[];
   onClose: () => void;
+  onUpdate?: (newStatus: string, newIsAssigned: boolean, newAssignedTo?: string) => void;
 }
 
-export function AssignDialog({ asset, employees, onClose }: Props) {
+export function AssignDialog({ asset, employees, onClose, onUpdate }: Props) {
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
+  
+  // Optimistic update state
+  const [status, setStatus] = useState(asset.status);
+  const [isAssigned, setIsAssigned] = useState(asset.isAssigned);
+  const [assignedTo, setAssignedTo] = useState(asset.assignedTo);
+  const [assignmentHistory, setAssignmentHistory] = useState(asset.assignmentHistory);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const employeeId   = fd.get('employeeId') as string;
     const employeeName = employees.find((e) => e._id === employeeId)?.employeeName ?? '';
+    
+    // Optimistic update
+    setStatus('In Use');
+    setIsAssigned(true);
+    setAssignedTo(employeeName);
+    
     startTransition(async () => {
       const res = await assignAsset(asset._id, {
         employeeId,
@@ -30,7 +43,16 @@ export function AssignDialog({ asset, employees, onClose }: Props) {
         assignedAt: fd.get('assignedAt'),
         notes: fd.get('notes'),
       });
-      if (!res.success) return setError(res.error);
+      if (!res.success) {
+        // Revert optimistic update on error
+        setStatus(asset.status);
+        setIsAssigned(asset.isAssigned);
+        setAssignedTo(asset.assignedTo);
+        setAssignmentHistory(asset.assignmentHistory);
+        return setError(res.error);
+      }
+      // Notify parent of optimistic update
+      if (onUpdate) onUpdate('In Use', true, employeeName);
       onClose();
     });
   }
@@ -42,7 +64,7 @@ export function AssignDialog({ asset, employees, onClose }: Props) {
         <Typography variant="caption" display="block" color="text.secondary">{asset.assetCode} — {asset.assetName}</Typography>
       </DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }} suppressHydrationWarning>
           {error && <Alert severity="error" sx={{ py: 0 }}>{error}</Alert>}
           <TextField name="employeeId" label="Employee" size="small" select required fullWidth defaultValue="">
             {employees.map((e) => (

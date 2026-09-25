@@ -2,7 +2,7 @@ import { Schema, model, models, Document, Types } from 'mongoose';
 
 export const ASSET_TYPES = ['laptop', 'desktop', 'display'] as const;
 export const DEPRECIATION_METHODS = ['straight-line', 'declining-balance', 'custom'] as const;
-export const ASSET_STATUSES = ['Pending Delivery', 'In Stock', 'In Use', 'Under Repair', 'Decommissioned'] as const;
+export const ASSET_STATUSES = ['Pending Delivery', 'In Stock', 'In Use', 'Decommissioned'] as const;
 
 export type AssetType = (typeof ASSET_TYPES)[number];
 export type AssetStatus = (typeof ASSET_STATUSES)[number];
@@ -28,7 +28,6 @@ export interface IAsset extends Document {
   assetType: AssetType;
   status?: AssetStatus;
   acquisitionDate?: Date;
-  deliveredAt?: Date;
   acquisitionCost: number;
   supplierId?: Types.ObjectId;
   depreciationMethod?: string;
@@ -65,7 +64,6 @@ const AssetSchema = new Schema<IAsset>(
     assetType: { type: String, enum: ASSET_TYPES, required: true },
     status: { type: String, enum: ASSET_STATUSES },
     acquisitionDate: Date,
-    deliveredAt: Date,
     acquisitionCost: { type: Number, required: true, min: 0 },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
     depreciationMethod: { type: String, enum: DEPRECIATION_METHODS },

@@ -44,9 +44,14 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       deptCostMap['Unassigned'] = (deptCostMap['Unassigned'] ?? 0) + a.acquisitionCost;
     }
 
-    const months = Math.floor((now - new Date(a.acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-    const lc = LIFECYCLE.find((l) => months <= l.maxMonths)!;
-    lifecycleMap[lc.stage]++;
+    // Handle assets without acquisitionDate (use 0 months for new items)
+    let months = 0;
+    if (a.acquisitionDate) {
+      months = Math.floor((now - new Date(a.acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+    }
+
+    const lc = LIFECYCLE.find((l) => months <= l.maxMonths);
+    if (lc) lifecycleMap[lc.stage]++;
   }
 
   return {

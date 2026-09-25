@@ -96,7 +96,7 @@ export function Sidebar() {
           {open && (
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, pl: 1 }}>
               <Typography fontWeight={800} sx={{ color: '#F05340', fontSize: '0.95rem', lineHeight: 1 }}>ITMS</Typography>
-              <Typography sx={{ color: 'text.disabled', fontSize: '0.62rem', lineHeight: 1 }}>v0.8.0 alpha</Typography>
+              <Typography sx={{ color: 'text.disabled', fontSize: '0.62rem', lineHeight: 1 }}>v0.1.2</Typography>
             </Box>
           )}
           <IconButton onClick={() => setOpen((v) => !v)} size="small">

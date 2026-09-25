@@ -3,7 +3,7 @@ import { Schema, model, models, Document } from 'mongoose';
 export const USER_TYPES = ['support', 'standard', 'standardplus', 'poweruser'] as const;
 export type UserType = (typeof USER_TYPES)[number];
 
-export const EMPLOYEE_STATUSES = ['Active', 'On Leave', 'Resigned', 'Retired'] as const;
+export const EMPLOYEE_STATUSES = ['Active', 'Inactive'] as const;
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
 
 export interface IEmployee extends Document {
@@ -25,7 +25,7 @@ const EmployeeSchema = new Schema<IEmployee>(
     location: { type: String, required: true },
     status: { type: String, enum: EMPLOYEE_STATUSES, default: 'Active' },
     hiredAt: { type: Date, default: Date.now },
-    resignedAt: Date,
+    resignedAt: { type: Date, default: null },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }

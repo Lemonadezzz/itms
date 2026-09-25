@@ -36,7 +36,7 @@ export function SoftwareFormDialog({ open, software, suppliers, onClose }: Props
         {isEdit ? 'Edit Software' : 'Add Software'}
       </DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
+        <DialogContent suppressHydrationWarning>
           {error && <Alert severity="error" sx={{ mb: 2, py: 0 }}>{error}</Alert>}
           <Grid container spacing={2}>
             <Grid size={{ xs: 12 }}>

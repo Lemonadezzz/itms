@@ -7,7 +7,10 @@ export type EmployeeRow = {
   department: string;
   userType: string;
   location: string;
+  status: string;
   hiredAt?: string;
+  resignedAt?: string;
+  isDeleted: boolean;
 };
 
 export async function getEmployees({
@@ -41,7 +44,10 @@ export async function getEmployees({
       department: e.department,
       userType: e.userType,
       location: e.location,
+      status: e.status,
       hiredAt: (e.hiredAt || (e as any).hireDate)?.toISOString(),
+      resignedAt: e.resignedAt?.toISOString(),
+      isDeleted: e.isDeleted,
     })),
     total,
   };
@@ -49,6 +55,7 @@ export async function getEmployees({
 
 export async function getEmployeeOptions(): Promise<{ _id: string; employeeName: string }[]> {
   await connectDB();
-  const docs = await Employee.find({}, { employeeName: 1 }).sort({ employeeName: 1 }).lean();
+  // Only return active employees for assignment
+  const docs = await Employee.find({ status: 'Active' }, { employeeName: 1 }).sort({ employeeName: 1 }).lean();
   return docs.map((e) => ({ _id: e._id.toString(), employeeName: e.employeeName }));
 }

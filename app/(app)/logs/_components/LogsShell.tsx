@@ -52,7 +52,7 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
   ];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }} suppressHydrationWarning>
       <Stack direction="row" gap={1}>
         <TextField
           size="small" placeholder="Search…"
@@ -66,6 +66,7 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
           defaultValue={searchParams.get('action') ?? ''}
           onChange={(e) => pushParams({ action: e.target.value, page: 0 })}
           sx={{ width: 130 }}
+          slotProps={{ htmlInput: { 'data-nh': '' } }}
         >
           <MenuItem value="">All</MenuItem>
           {['create', 'update', 'delete', 'assign', 'return'].map((a) => (

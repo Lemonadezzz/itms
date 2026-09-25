@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/db/mongoose';
 import { Asset } from '@/models/Asset';
+import { Employee } from '@/models/Employee';
 import { CreateAssetSchema, AssignAssetSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
 import { Types } from 'mongoose';
@@ -30,12 +31,19 @@ export async function createAsset(formData: unknown): Promise<ActionResult<strin
     acquisitionDate: isPending ? undefined : data.acquisitionDate,
   };
 
-  const asset = await Asset.create(assetData);
-  const { userId, userName } = await getActor();
-  const actionName = isPending ? 'PRE_DELIVERY_INTAKE' : 'create';
-  await writeLog({ userId, userName, action: actionName as any, description: `Created asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: asset._id.toString() });
-  revalidatePath('/assets');
-  return { success: true, data: asset._id.toString() };
+  try {
+    const asset = await Asset.create(assetData);
+    const { userId, userName } = await getActor();
+    const actionName = isPending ? 'PRE_DELIVERY_INTAKE' : 'create';
+    await writeLog({ userId, userName, action: actionName as any, description: `Created asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: asset._id.toString() });
+    revalidatePath('/assets');
+    return { success: true, data: asset._id.toString() };
+  } catch (err: any) {
+    if (err.code === 11000 && err.keyPattern?.assetCode) {
+      return { success: false, error: `Asset code "${assetData.assetCode}" already exists. Please use a different code.` };
+    }
+    throw err;
+  }
 }
 
 export async function updateAsset(id: string, formData: unknown): Promise<ActionResult> {
@@ -43,12 +51,19 @@ export async function updateAsset(id: string, formData: unknown): Promise<Action
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
   await connectDB();
-  const asset = await Asset.findByIdAndUpdate(id, parsed.data, { new: true });
-  if (!asset) return { success: false, error: 'Asset not found' };
-  const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'update', description: `Updated asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: id });
-  revalidatePath('/assets');
-  return { success: true, data: undefined };
+  try {
+    const asset = await Asset.findByIdAndUpdate(id, parsed.data, { new: true });
+    if (!asset) return { success: false, error: 'Asset not found' };
+    const { userId, userName } = await getActor();
+    await writeLog({ userId, userName, action: 'update', description: `Updated asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: id });
+    revalidatePath('/assets');
+    return { success: true, data: undefined };
+  } catch (err: any) {
+    if (err.code === 11000 && err.keyPattern?.assetCode) {
+      return { success: false, error: `Asset code "${parsed.data.assetCode}" already exists. Please use a different code.` };
+    }
+    throw err;
+  }
 }
 
 export async function assignAsset(assetId: string, formData: unknown): Promise<ActionResult> {
@@ -62,10 +77,15 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
 
+  // Get the current employee's name before closing the assignment
+  let currentEmployeeName = '';
   if (asset.currentAssignment) {
+    const currentEmp = await Employee.findById(asset.currentAssignment.employeeId).select('employeeName').lean();
+    currentEmployeeName = currentEmp?.employeeName ?? 'Unknown Employee';
+    
     asset.assignmentHistory.push({
       employeeId: asset.currentAssignment.employeeId,
-      employeeName: '',
+      employeeName: currentEmployeeName,
       assignedAt: asset.currentAssignment.assignedDate,
       returnedAt: new Date(),
       notes: asset.currentAssignment.notes,
@@ -74,6 +94,7 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
 
   asset.currentAssignment = { employeeId: empObjectId, assignedDate: assignedAt, notes };
   asset.assignmentHistory.push({ employeeId: empObjectId, employeeName, assignedAt, notes });
+  asset.status = 'In Use';
   await asset.save();
 
   const { userId, userName } = await getActor();
@@ -91,6 +112,7 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
   const last = asset.assignmentHistory.at(-1);
   if (last && !last.returnedAt) last.returnedAt = returnedDate;
   asset.currentAssignment = undefined;
+  asset.status = 'In Stock';
   await asset.save();
 
   const { userId, userName } = await getActor();
@@ -113,9 +135,9 @@ export async function confirmDelivery(assetId: string, acquisitionDate: string):
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
 
+  const deliveryDate = new Date();
   asset.status = 'In Stock';
-  asset.deliveredAt = new Date();
-  if (acquisitionDate) asset.acquisitionDate = new Date(acquisitionDate);
+  asset.acquisitionDate = acquisitionDate ? new Date(acquisitionDate) : deliveryDate;
   await asset.save();
 
   const { userId, userName } = await getActor();
@@ -129,66 +151,24 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
 
+  const empObjId = new Types.ObjectId(newEmployeeId);
+  const employee = await Employee.findById(newEmployeeId).select('employeeName').lean();
+  const employeeName = employee?.employeeName ?? 'Unknown Employee';
+
   // close current assignment if exists
   if (asset.currentAssignment) {
-    asset.assignmentHistory.push({
-      employeeId: asset.currentAssignment.employeeId,
-      employeeName: '',
-      assignedAt: asset.currentAssignment.assignedDate,
-      returnedAt: new Date(),
-      notes: asset.currentAssignment.notes,
-    });
+    const last = asset.assignmentHistory.at(-1);
+    if (last && !last.returnedAt) last.returnedAt = new Date();
   }
 
-  const empObjId = new Types.ObjectId(newEmployeeId);
   // create new assignment
   asset.currentAssignment = { employeeId: empObjId, assignedDate: new Date(), notes };
-  asset.assignmentHistory.push({ employeeId: empObjId, employeeName: '', assignedAt: new Date(), notes });
+  asset.assignmentHistory.push({ employeeId: empObjId, employeeName: employeeName, assignedAt: new Date(), notes });
   asset.status = 'In Use';
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_TRANSFER' as any, description: `Transferred asset ${asset.assetCode} to employee ${newEmployeeId}`, relatedModel: 'Asset', relatedId: assetId });
-  revalidatePath('/assets');
-  return { success: true, data: undefined };
-}
-
-export async function markForRepair(assetId: string, issueDescription: string): Promise<ActionResult> {
-  await connectDB();
-  const asset = await Asset.findById(assetId);
-  if (!asset) return { success: false, error: 'Asset not found' };
-
-  // close current assignment if any
-  if (asset.currentAssignment) {
-    asset.assignmentHistory.push({
-      employeeId: asset.currentAssignment.employeeId,
-      employeeName: '',
-      assignedAt: asset.currentAssignment.assignedDate,
-      returnedAt: new Date(),
-      notes: asset.currentAssignment.notes,
-    });
-    asset.currentAssignment = undefined;
-  }
-
-  asset.status = 'Under Repair';
-  await asset.save();
-
-  const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_MAINTENANCE_START' as any, description: `Asset ${asset.assetCode} marked for repair: ${issueDescription}`, relatedModel: 'Asset', relatedId: assetId });
-  revalidatePath('/assets');
-  return { success: true, data: undefined };
-}
-
-export async function completeRepair(assetId: string, resolutionNotes?: string): Promise<ActionResult> {
-  await connectDB();
-  const asset = await Asset.findById(assetId);
-  if (!asset) return { success: false, error: 'Asset not found' };
-
-  asset.status = 'In Stock';
-  await asset.save();
-
-  const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_MAINTENANCE_END' as any, description: `Repair completed for asset ${asset.assetCode}. ${resolutionNotes ?? ''}`, relatedModel: 'Asset', relatedId: assetId });
+  await writeLog({ userId, userName, action: 'ASSET_TRANSFER' as any, description: `Transferred asset ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }

@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Button, Stack } from '@mui/material';
+import { Box, Button, Stack, Snackbar, Alert } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import type { GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
 import { AssetTable } from '@/components/assets/AssetTable';
 import { AssetFiltersBar } from './AssetFiltersBar';
 import { AssetFormDialog } from './AssetFormDialog';
-import { AssignDialog } from './AssignDialog';
 import { AssetDetailDialog } from './AssetDetailDialog';
 import { ConfirmDeliveryDialog } from './ConfirmDeliveryDialog';
-import { returnAsset, deleteAsset } from '@/actions/assetActions';
+import { deleteAsset } from '@/actions/assetActions';
 import type { AssetRow } from '@/types';
 
 interface Props {
@@ -32,9 +31,9 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
 
   const [createOpen, setCreateOpen]     = useState(false);
   const [editTarget, setEditTarget]     = useState<AssetRow | null>(null);
-  const [assignTarget, setAssignTarget] = useState<AssetRow | null>(null);
   const [detailTarget, setDetailTarget] = useState<AssetRow | null>(null);
   const [confirmDeliveryTarget, setConfirmDeliveryTarget] = useState<AssetRow | null>(null);
+  const [errorMsg, setErrorMsg]         = useState<string | null>(null);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -42,15 +41,17 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
     startTransition(() => router.push(`${pathname}?${params.toString()}`));
   }
 
-  function handleReturn(row: AssetRow) {
-    if (!confirm(`Return ${row.assetCode}?`)) return;
-    startTransition(async () => { await returnAsset(row._id); });
-  }
-
   function handleDelete(row: AssetRow) {
     if (!confirm(`Delete ${row.assetCode}? This cannot be undone.`)) return;
     startTransition(async () => { await deleteAsset(row._id); });
   }
+
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => setErrorMsg(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMsg]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 1.5, minHeight: 0 }}>
@@ -69,8 +70,6 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           onPaginationChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
           onSortChange={(m: GridSortModel) => { if (m[0]) pushParams({ sortField: m[0].field, sortDir: m[0].sort ?? 'asc', page: 0 }); }}
           onDetail={(row) => setDetailTarget(row)}
-          onAssign={(row) => setAssignTarget(row)}
-          onReturn={handleReturn}
           onEdit={(row) => setEditTarget(row)}
           onDelete={handleDelete}
           onConfirmDelivery={(row) => setConfirmDeliveryTarget(row)}
@@ -89,22 +88,26 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
         open={createOpen || !!editTarget}
         asset={editTarget}
         onClose={() => { setCreateOpen(false); setEditTarget(null); }}
+        onError={setErrorMsg}
       />
 
-      {assignTarget && (
-        <AssignDialog
-          asset={assignTarget}
-          employees={employees}
-          onClose={() => setAssignTarget(null)}
-        />
-      )}
-      
       {confirmDeliveryTarget && (
         <ConfirmDeliveryDialog
           asset={confirmDeliveryTarget}
           onClose={() => setConfirmDeliveryTarget(null)}
         />
       )}
+
+      <Snackbar
+        open={!!errorMsg}
+        autoHideDuration={4000}
+        onClose={() => setErrorMsg(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" sx={{ width: '100%' }}>
+          {errorMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

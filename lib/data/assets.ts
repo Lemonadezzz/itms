@@ -9,6 +9,7 @@ export type AssetFilters = {
   isAssigned?: string;
   location?: string;
   assignedToId?: string;
+  showDecommissioned?: string;
 };
 
 type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
@@ -55,6 +56,7 @@ export async function getAssets({
   if (filters.isAssigned === 'false') query.currentAssignment = { $exists: false };
   if (filters.location)   query.location = { $regex: filters.location, $options: 'i' };
   if (filters.assignedToId) query['currentAssignment.employeeId'] = filters.assignedToId;
+  if (filters.showDecommissioned === 'false') query.status = { $ne: 'Decommissioned' };
 
   const sort: Record<string, 1 | -1> = { [sortField]: sortDir === 'asc' ? 1 : -1 };
 
@@ -68,6 +70,7 @@ export async function getAssets({
     Asset.countDocuments(query),
   ]);
 
+  // Calculate age based on current date (not fixed reference)
   const now = Date.now();
 
   const rows: AssetRow[] = docs.map((a) => {

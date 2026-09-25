@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, MenuItem, Grid, Alert, CircularProgress,
@@ -18,11 +18,34 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const isEdit = !!employee;
+  const [userType, setUserType] = useState('');
+  const [status, setStatus] = useState('Active');
+  const [formData, setFormData] = useState<Record<string, string>>({});
+
+  // Reset form when opening with different employee
+  useEffect(() => {
+    if (employee) {
+      setUserType(employee.userType || '');
+      setStatus(employee.status || 'Active');
+      setFormData({
+        employeeName: employee.employeeName || '',
+        department: employee.department || '',
+        location: employee.location || '',
+        hiredAt: employee.hiredAt ? employee.hiredAt.split('T')[0] : '',
+      });
+    } else {
+      setUserType('');
+      setStatus('Active');
+      setFormData({});
+    }
+  }, [open, employee?._id]);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const data = Object.fromEntries(fd.entries());
+    data.userType = userType;
+    if (isEdit) data.status = status;
     startTransition(async () => {
       const res = isEdit
         ? await updateEmployee(employee._id, data)
@@ -38,20 +61,20 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
         {isEdit ? 'Edit Employee' : 'Add Employee'}
       </DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
+        <DialogContent suppressHydrationWarning>
           {error && <Alert severity="error" sx={{ mb: 2, py: 0 }}>{error}</Alert>}
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="employeeName" label="Full Name" size="small" required fullWidth
-                defaultValue={employee?.employeeName ?? ''} />
+                value={formData.employeeName || ''} onChange={(e) => setFormData({...formData, employeeName: e.target.value})} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="department" label="Department" size="small" required fullWidth
-                defaultValue={employee?.department ?? ''} />
+                value={formData.department || ''} onChange={(e) => setFormData({...formData, department: e.target.value})} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="userType" label="User Type" size="small" select required fullWidth
-                defaultValue={employee?.userType ?? ''}>
+                value={userType} onChange={(e) => setUserType(e.target.value)}>
                 <MenuItem value="support">Support</MenuItem>
                 <MenuItem value="standard">Standard</MenuItem>
                 <MenuItem value="standardplus">Standard+</MenuItem>
@@ -60,13 +83,22 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="location" label="Location" size="small" required fullWidth
-                defaultValue={employee?.location ?? ''} />
+                value={formData.location || ''} onChange={(e) => setFormData({...formData, location: e.target.value})} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="hiredAt" label="Hire Date" type="date" size="small" fullWidth
                 InputLabelProps={{ shrink: true }}
-                defaultValue={employee?.hiredAt ? employee.hiredAt.split('T')[0] : ''} />
+                value={formData.hiredAt || ''} onChange={(e) => setFormData({...formData, hiredAt: e.target.value})} />
             </Grid>
+            {isEdit && (
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField name="status" label="Status" size="small" select fullWidth
+                  value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <MenuItem value="Active">Active</MenuItem>
+                  <MenuItem value="Inactive">Inactive</MenuItem>
+                </TextField>
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

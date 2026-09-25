@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, TextField, MenuItem, InputAdornment, Autocomplete } from '@mui/material';
+import { Box, TextField, MenuItem, InputAdornment, Autocomplete, FormControlLabel, Checkbox } from '@mui/material';
 import { Search } from '@mui/icons-material';
 
 interface Employee { _id: string; employeeName: string; }
@@ -16,13 +16,14 @@ export function AssetFiltersBar({ employees, onFilter }: Props) {
   const [assetType,  setType]       = useState('');
   const [isAssigned, setStatus]     = useState('');
   const [assignedTo, setAssignedTo] = useState<Employee | null>(null);
+  const [showDecommissioned, setShowDecommissioned] = useState(false);
 
-  function emit(overrides: Record<string, string>) {
-    onFilter({ search, assetType, isAssigned, assignedToId: assignedTo?._id ?? '', ...overrides });
+  function emit(overrides: Record<string, string | boolean>) {
+    onFilter({ search, assetType, isAssigned, assignedToId: assignedTo?._id ?? '', showDecommissioned: String(showDecommissioned), ...overrides });
   }
 
   return (
-    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }} suppressHydrationWarning>
       <TextField
         size="small" placeholder="Search…" value={search}
         onChange={(e) => { setSearch(e.target.value); emit({ search: e.target.value }); }}
@@ -66,6 +67,17 @@ export function AssetFiltersBar({ employees, onFilter }: Props) {
         )}
         sx={{ width: 200 }}
         clearOnEscape
+      />
+
+      <FormControlLabel
+        control={
+          <Checkbox size="small" checked={showDecommissioned} onChange={(e) => {
+            setShowDecommissioned(e.target.checked);
+            emit({ showDecommissioned: String(e.target.checked) });
+          }} />
+        }
+        label="Show Decommissioned"
+        sx={{ fontSize: '0.75rem' }}
       />
     </Box>
   );

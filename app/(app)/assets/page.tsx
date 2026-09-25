@@ -22,6 +22,7 @@ export default async function AssetsPage({ searchParams }: Props) {
       isAssigned:   sp.isAssigned,
       location:     sp.location,
       assignedToId: sp.assignedToId,
+      showDecommissioned: sp.showDecommissioned,
     }}),
     getEmployeeOptions(),
   ]);

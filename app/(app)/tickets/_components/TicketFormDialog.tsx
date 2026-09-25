@@ -41,7 +41,7 @@ export function TicketFormDialog({ open, ticket, employees, onClose }: Props) {
         {isEdit ? 'Edit Ticket' : 'New Ticket'}
       </DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
+        <DialogContent suppressHydrationWarning>
           {error && <Alert severity="error" sx={{ mb: 2, py: 0 }}>{error}</Alert>}
           <Grid container spacing={2}>
             <Grid size={{ xs: 12 }}>

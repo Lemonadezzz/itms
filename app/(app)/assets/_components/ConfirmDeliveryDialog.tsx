@@ -34,7 +34,7 @@ export function ConfirmDeliveryDialog({ asset, onClose }: Props) {
         <Typography variant="caption" display="block" color="text.secondary">{asset.assetCode} — {asset.assetName}</Typography>
       </DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }} suppressHydrationWarning>
           {error && <Alert severity="error" sx={{ py: 0 }}>{error}</Alert>}
           <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
             InputLabelProps={{ shrink: true }}

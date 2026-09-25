@@ -6,14 +6,15 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useState, useTransition, useEffect } from 'react';
 import {
   calculateCurrentValue,
   isFullyDepreciated,
   getMonthlyDepreciationSchedule,
 } from '@/lib/depreciation';
 import type { AssetRow } from '@/types';
-import { transferAsset, markForRepair, completeRepair, decommissionAsset } from '@/actions/assetActions';
+import { transferAsset, assignAsset, returnAsset, decommissionAsset } from '@/actions/assetActions';
+import { AssignDialog } from './AssignDialog';
 
 const TYPE_COLORS: Record<string, string> = {
   laptop:  '#F05340',
@@ -33,29 +34,83 @@ interface Props {
 export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
   const isCustom = asset.depreciationMethod === 'custom';
   const [, startTransition] = useTransition();
-
-  // Transfer sub-dialog state
+  
+  // Optimistic update state
+  const [status, setStatus] = useState(asset.status);
+  const [isAssigned, setIsAssigned] = useState(asset.isAssigned);
+  const [assignedTo, setAssignedTo] = useState(asset.assignedTo);
+  const [assignmentHistory, setAssignmentHistory] = useState(asset.assignmentHistory);
+  
+  // Dialog state
+  const [assignOpen, setAssignOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [transferAction, setTransferAction] = useState<'transfer' | 'return' | null>(null);
   const [transferEmpId, setTransferEmpId] = useState('');
+  const [dialogKey, setDialogKey] = useState(0);
 
-  function handleTransferSubmit() {
-    if (!transferEmpId) return;
-    startTransition(async () => {
-      await transferAsset(asset._id, transferEmpId);
-      setTransferOpen(false);
-      setTransferEmpId('');
-    });
+  // Refresh data when opening dialog with new asset
+  const [currentAsset, setCurrentAsset] = useState(asset);
+  useEffect(() => {
+    if (asset !== currentAsset) {
+      setCurrentAsset(asset);
+      setStatus(asset.status);
+      setIsAssigned(asset.isAssigned);
+      setAssignedTo(asset.assignedTo);
+      setAssignmentHistory(asset.assignmentHistory);
+    }
+  }, [asset]);
+
+  // Get current assigned employee name (for filtering out from transfer list)
+  // Note: assignmentHistory only contains employeeName, not employeeId
+  const currentEmployeeName = assignmentHistory.length > 0 && !assignmentHistory[assignmentHistory.length - 1].returnedAt
+    ? assignmentHistory[assignmentHistory.length - 1].employeeName
+    : null;
+
+  async function handleTransferSubmit() {
+    if (!transferEmpId && transferAction === 'transfer') return;
+    
+    if (transferAction === 'return') {
+      // Optimistic update
+      setStatus('In Stock');
+      setIsAssigned(false);
+      setAssignedTo(undefined);
+      
+      // Call returnAsset for returning to inventory
+      startTransition(async () => {
+        await returnAsset(asset._id);
+        setTransferOpen(false);
+        setTransferAction(null);
+        setTransferEmpId('');
+        // Refresh assignment history after return
+        setAssignmentHistory([]);
+      });
+    } else {
+      // Transfer to new employee
+      const emp = employees.find((e) => e._id === transferEmpId);
+      const employeeName = emp?.employeeName ?? 'Unknown Employee';
+      
+      // Optimistic update
+      setStatus('In Use');
+      setIsAssigned(true);
+      setAssignedTo(employeeName);
+      
+      const formData = {
+        employeeId: transferEmpId,
+        employeeName: employeeName,
+        assignedAt: new Date().toISOString().split('T')[0],
+        notes: '',
+      };
+      
+      startTransition(async () => {
+        await assignAsset(asset._id, formData);
+        setTransferOpen(false);
+        setTransferAction(null);
+        setTransferEmpId('');
+        // Refresh assignment history after transfer
+        setAssignmentHistory([]);
+      });
+    }
   }
-
-  const handleMarkRepair = async () => {
-    const issue = prompt('Enter issue description:');
-    if (issue) await markForRepair(asset._id, issue);
-  };
-
-  const handleCompleteRepair = async () => {
-    const notes = prompt('Enter resolution notes (optional):');
-    await completeRepair(asset._id, notes ?? undefined);
-  };
 
   const handleDecommission = async () => {
     const reason = prompt('Enter decommission reason:');
@@ -111,7 +166,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
       {/* ── Main detail dialog ── */}
       <Dialog
         open
-        onClose={onClose}
+        onClose={() => { onClose(); }}
         maxWidth={false}
         PaperProps={{ sx: { display: 'flex', flexDirection: 'column', maxHeight: '90vh', width: 'auto', minWidth: 'auto' } }}
       >
@@ -139,10 +194,16 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
                   <InfoRow label="Location"         value={asset.location} />
                   <InfoRow label="Acquisition Date" value={new Date(asset.acquisitionDate).toLocaleDateString('en-CA')} />
                   <InfoRow label="Status" value={
-                    <Chip label={asset.isAssigned ? 'Assigned' : 'Available'}
-                      color={asset.isAssigned ? 'warning' : 'success'} size="small" sx={{ fontSize: '0.75rem' }} />
+                    <Chip label={status || 'Unknown'} size="small"
+                      color={
+                        status === 'In Use' ? 'warning' :
+                        status === 'In Stock' ? 'success' :
+                        status === 'Decommissioned' ? 'error' :
+                        status === 'Pending Delivery' ? 'info' :
+                        'default'
+                      } sx={{ fontSize: '0.75rem' }} />
                   } />
-                  {asset.isAssigned && <InfoRow label="Assigned To" value={asset.assignedTo} />}
+                  {isAssigned && <InfoRow label="Assigned To" value={assignedTo} />}
                   {asset.depreciationMethod && (
                     <InfoRow label="Depreciation" value={asset.depreciationMethod} />
                   )}
@@ -230,13 +291,20 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
               </Grid>
             )}
 
-            {/* ── ACTION BUTTONS ── always visible */}
+            {/* ── ACTION BUTTONS ── */}
             <Grid size={{ xs: 12 }}>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-                <Button variant="outlined" size="small" onClick={() => setTransferOpen(true)}>Transfer</Button>
-                <Button variant="outlined" size="small" onClick={handleMarkRepair}>Mark for Repair</Button>
-                <Button variant="outlined" size="small" onClick={handleCompleteRepair}>Complete Repair</Button>
-                <Button variant="outlined" size="small" color="error" onClick={handleDecommission}>Decommission</Button>
+                {status === 'In Use' && (
+                  <>
+                    <Button variant="outlined" size="small" onClick={() => setTransferOpen(true)}>Transfer / Return</Button>
+                  </>
+                )}
+                {status === 'In Stock' && (
+                  <>
+                    <Button variant="outlined" size="small" onClick={() => setAssignOpen(true)}>Assign</Button>
+                    <Button variant="outlined" size="small" color="error" onClick={handleDecommission}>Decommission</Button>
+                  </>
+                )}
               </Box>
             </Grid>
 
@@ -254,40 +322,100 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
         </DialogContent>
       </Dialog>
 
+      {/* ── Assign sub-dialog ── */}
+      {assignOpen && (
+        <AssignDialog
+          asset={asset}
+          employees={employees}
+          onClose={() => setAssignOpen(false)}
+          onUpdate={(newStatus, newIsAssigned, newAssignedTo) => {
+            setStatus(newStatus);
+            setIsAssigned(newIsAssigned);
+            setAssignedTo(newAssignedTo);
+          }}
+        />
+      )}
+
       {/* ── Transfer sub-dialog ── */}
-      <Dialog open={transferOpen} onClose={() => setTransferOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={transferOpen} onClose={() => { setTransferOpen(false); setTransferAction(null); setTransferEmpId(''); }} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 700 }}>
-          Transfer Asset
+          Transfer / Return Asset
           <Typography variant="caption" display="block" color="text.secondary">
             {asset.assetCode} — {asset.assetName}
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ pt: '12px !important' }}>
-          <TextField
-            select
-            label="Transfer To"
-            size="small"
-            fullWidth
-            value={transferEmpId}
-            onChange={(e) => setTransferEmpId(e.target.value)}
-          >
-            <MenuItem value="" disabled>— Select Employee —</MenuItem>
-            {employees.map((e) => (
-              <MenuItem key={e._id} value={e._id}>{e.employeeName}</MenuItem>
-            ))}
-          </TextField>
+          {transferAction === null && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body2" sx={{ textAlign: 'center' }}>
+                What would you like to do with this asset?
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Button 
+                  variant="contained" 
+                  size="large"
+                  onClick={() => setTransferAction('transfer')}
+                  sx={{ minWidth: 120 }}
+                >
+                  Transfer
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="large"
+                  color="error"
+                  onClick={() => setTransferAction('return')}
+                  sx={{ minWidth: 120 }}
+                >
+                  Return
+                </Button>
+              </Box>
+            </Box>
+          )}
+          
+          {transferAction === 'return' && (
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="body2" color="error" sx={{ mb: 1 }}>
+                This will return the asset to inventory and set its status to "In Stock".
+              </Typography>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {asset.assignedTo || 'Currently assigned employee'}
+              </Typography>
+            </Box>
+          )}
+          
+          {transferAction === 'transfer' && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Select the employee to transfer this asset to. The current employee will be excluded from the list.
+              </Typography>
+              <TextField
+                select
+                label="Transfer To"
+                size="small"
+                fullWidth
+                value={transferEmpId}
+                onChange={(e) => setTransferEmpId(e.target.value)}
+              >
+                {employees.filter((e) => e.employeeName !== currentEmployeeName).map((e) => (
+                  <MenuItem key={e._id} value={e._id}>{e.employeeName}</MenuItem>
+                ))}
+              </TextField>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button size="small" onClick={() => setTransferOpen(false)}>Cancel</Button>
-          <Button
-            size="small"
-            variant="contained"
-            disabled={!transferEmpId}
-            onClick={handleTransferSubmit}
-          >
-            Confirm Transfer
-          </Button>
-        </DialogActions>
+        {transferAction && (
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button size="small" onClick={() => setTransferAction(null)}>Back</Button>
+            <Button 
+              size="small"
+              variant="contained"
+              disabled={transferAction === 'transfer' && !transferEmpId}
+              onClick={handleTransferSubmit}
+            >
+              Confirm {transferAction === 'transfer' ? 'Transfer' : 'Return'}
+            </Button>
+          </DialogActions>
+        )}
       </Dialog>
     </>
   );

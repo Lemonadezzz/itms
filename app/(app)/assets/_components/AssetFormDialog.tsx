@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, MenuItem, Grid, Alert, CircularProgress,
+  Button, TextField, MenuItem, Grid, CircularProgress,
   FormControlLabel, Checkbox
 } from '@mui/material';
 import { createAsset, updateAsset } from '@/actions/assetActions';
@@ -13,10 +13,10 @@ interface Props {
   open: boolean;
   asset?: AssetRow | null;
   onClose: () => void;
+  onError?: (msg: string) => void;
 }
 
-export function AssetFormDialog({ open, asset, onClose }: Props) {
-  const [error, setError] = useState('');
+export function AssetFormDialog({ open, asset, onClose, onError }: Props) {
   const [isPendingCheckbox, setIsPendingCheckbox] = useState(false);
   const [isPendingSubmit, startTransition] = useTransition();
   const isEdit = !!asset;
@@ -26,7 +26,7 @@ export function AssetFormDialog({ open, asset, onClose }: Props) {
     const data = Object.fromEntries(new FormData(e.currentTarget).entries());
     startTransition(async () => {
       const res = isEdit ? await updateAsset(asset._id, data) : await createAsset(data);
-      if (!res.success) return setError(res.error);
+      if (!res.success) return onError?.(res.error);
       onClose();
     });
   }
@@ -37,8 +37,7 @@ export function AssetFormDialog({ open, asset, onClose }: Props) {
         {isEdit ? 'Edit Asset' : 'Add Asset'}
       </DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogContent>
-          {error && <Alert severity="error" sx={{ mb: 2, py: 0 }}>{error}</Alert>}
+        <DialogContent suppressHydrationWarning>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="assetName" label="Asset Name" size="small" required fullWidth
