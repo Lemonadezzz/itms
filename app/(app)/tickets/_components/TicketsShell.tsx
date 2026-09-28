@@ -9,6 +9,7 @@ import {
 import { Add, Search, Edit, Delete } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { TicketFormDialog } from './TicketFormDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteTicket, updateTicketStatus } from '@/actions/ticketActions';
 import type { TicketRow } from '@/lib/data/tickets';
 
@@ -33,6 +34,7 @@ export function TicketsShell({ rows, total, page, pageSize, employees }: Props) 
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TicketRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TicketRow | null>(null);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -72,7 +74,7 @@ export function TicketsShell({ rows, total, page, pageSize, employees }: Props) 
           </Tooltip>
           <Tooltip title="Delete">
             <IconButton size="small" color="error"
-              onClick={() => confirm('Delete ticket?') && startTransition(async () => { await deleteTicket(row._id); })}>
+              onClick={() => setDeleteTarget(row)}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
@@ -124,6 +126,20 @@ export function TicketsShell({ rows, total, page, pageSize, employees }: Props) 
       <TicketFormDialog
         open={dialogOpen} ticket={editing} employees={employees}
         onClose={() => { setDialogOpen(false); setEditing(null); }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={`Delete ${deleteTarget?.ticketNumber}?`}
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          if (!deleteTarget) return false;
+          await deleteTicket(deleteTarget._id);
+          setDeleteTarget(null);
+          return true;
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
     </Box>
   );

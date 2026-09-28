@@ -10,6 +10,7 @@ import { AssetFiltersBar } from './AssetFiltersBar';
 import { AssetFormDialog } from './AssetFormDialog';
 import { AssetDetailDialog } from './AssetDetailDialog';
 import { ConfirmDeliveryDialog } from './ConfirmDeliveryDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteAsset } from '@/actions/assetActions';
 import type { AssetRow } from '@/types';
 
@@ -34,6 +35,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   const [detailTarget, setDetailTarget] = useState<AssetRow | null>(null);
   const [confirmDeliveryTarget, setConfirmDeliveryTarget] = useState<AssetRow | null>(null);
   const [errorMsg, setErrorMsg]         = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AssetRow | null>(null);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -42,8 +44,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   }
 
   function handleDelete(row: AssetRow) {
-    if (!confirm(`Delete ${row.assetCode}? This cannot be undone.`)) return;
-    startTransition(async () => { await deleteAsset(row._id); });
+    setDeleteTarget(row);
   }
 
   useEffect(() => {
@@ -97,6 +98,20 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           onClose={() => setConfirmDeliveryTarget(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={`Delete ${deleteTarget?.assetCode}?`}
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          if (!deleteTarget) return false;
+          await deleteAsset(deleteTarget._id);
+          setDeleteTarget(null);
+          return true;
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       <Snackbar
         open={!!errorMsg}

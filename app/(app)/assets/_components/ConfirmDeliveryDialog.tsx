@@ -21,7 +21,7 @@ export function ConfirmDeliveryDialog({ asset, onClose }: Props) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
-      const res = await confirmDelivery(asset._id, new Date(fd.get('acquisitionDate') as string));
+      const res = await confirmDelivery(asset._id, fd.get('acquisitionDate') as string);
       if (!res.success) return setError(res.error);
       onClose();
     });

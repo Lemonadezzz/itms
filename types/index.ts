@@ -5,6 +5,12 @@ export type AssetAssignmentHistory = {
   notes?: string;
 };
 
+export type AssetLogEntry = {
+  date: string;
+  action: string;
+  details: string;
+};
+
 export type AssetRow = {
   _id: string;
   assetCode: string;

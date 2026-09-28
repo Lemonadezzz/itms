@@ -1,6 +1,6 @@
 import { Schema, model, models, Document, Types } from 'mongoose';
 
-export const LOG_ACTIONS = ['create', 'update', 'delete', 'assign', 'return', 'PRE_DELIVERY_INTAKE', 'CONFIRM_DELIVERY', 'ASSET_TRANSFER', 'ASSET_MAINTENANCE_START', 'ASSET_MAINTENANCE_END', 'ASSET_DECOMMISSION'] as const;
+export const LOG_ACTIONS = ['create', 'update', 'delete', 'assign', 'return', 'PRE_DELIVERY_INTAKE', 'CONFIRM_DELIVERY', 'ASSET_TRANSFER', 'ASSET_MAINTENANCE_START', 'ASSET_MAINTENANCE_END', 'ASSET_DECOMMISSION', 'ASSET_RECOMMISSION', 'offboard', 'reactivate'] as const;
 export type LogAction = (typeof LOG_ACTIONS)[number];
 
 export interface IActivityLog extends Document {
@@ -10,6 +10,10 @@ export interface IActivityLog extends Document {
   description: string;
   relatedModel: string;
   relatedId: Types.ObjectId;
+  assetCode?: string;
+  reason?: string;
+  fromEmployee?: string;
+  toEmployee?: string;
 }
 
 const ActivityLogSchema = new Schema<IActivityLog>(
@@ -20,6 +24,10 @@ const ActivityLogSchema = new Schema<IActivityLog>(
     description: { type: String, required: true },
     relatedModel: { type: String, required: true },
     relatedId: { type: Schema.Types.ObjectId, required: true },
+    assetCode: { type: String },
+    reason: { type: String },
+    fromEmployee: { type: String },
+    toEmployee: { type: String },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

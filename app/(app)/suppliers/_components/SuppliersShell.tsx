@@ -9,6 +9,7 @@ import {
 import { Add, Search, Edit, Delete } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { SupplierFormDialog } from './SupplierFormDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteSupplier } from '@/actions/supplierActions';
 import type { SupplierRow } from '@/lib/data/suppliers';
 
@@ -26,6 +27,7 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SupplierRow | null>(null);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -59,7 +61,7 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
           </Tooltip>
           <Tooltip title="Delete">
             <IconButton size="small" color="error"
-              onClick={() => confirm('Delete supplier?') && startTransition(async () => { await deleteSupplier(row._id); })}>
+              onClick={() => setDeleteTarget(row)}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
@@ -98,6 +100,20 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
       <SupplierFormDialog
         open={dialogOpen} supplier={editing}
         onClose={() => { setDialogOpen(false); setEditing(null); }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={`Delete ${deleteTarget?.supplierName}?`}
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          if (!deleteTarget) return false;
+          await deleteSupplier(deleteTarget._id);
+          setDeleteTarget(null);
+          return true;
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
     </Box>
   );

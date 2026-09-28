@@ -13,9 +13,10 @@ interface Props {
   employees: { _id: string; employeeName: string }[];
   onClose: () => void;
   onUpdate?: (newStatus: string, newIsAssigned: boolean, newAssignedTo?: string) => void;
+  onLogUpdate?: (action: string, details: string) => void;
 }
 
-export function AssignDialog({ asset, employees, onClose, onUpdate }: Props) {
+export function AssignDialog({ asset, employees, onClose, onUpdate, onLogUpdate }: Props) {
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   
@@ -53,6 +54,7 @@ export function AssignDialog({ asset, employees, onClose, onUpdate }: Props) {
       }
       // Notify parent of optimistic update
       if (onUpdate) onUpdate('In Use', true, employeeName);
+      if (onLogUpdate) onLogUpdate('Assign', `Assigned to ${employeeName}`);
       onClose();
     });
   }

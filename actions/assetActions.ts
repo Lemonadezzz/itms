@@ -98,7 +98,7 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'assign', description: `Assigned ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId });
+  await writeLog({ userId, userName, action: 'assign', description: `Assigned ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, toEmployee: employeeName });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }
@@ -116,7 +116,7 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'return', description: `Returned asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: assetId });
+  await writeLog({ userId, userName, action: 'return', description: `Returned asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: asset.currentAssignment ? (await Employee.findById(asset.currentAssignment.employeeId).select('employeeName').lean())?.employeeName ?? 'Unknown' : 'Unknown' });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }
@@ -168,7 +168,22 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_TRANSFER' as any, description: `Transferred asset ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId });
+  await writeLog({ userId, userName, action: 'ASSET_TRANSFER', description: `Transferred asset ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: asset.currentAssignment ? (await Employee.findById(asset.currentAssignment.employeeId).select('employeeName').lean())?.employeeName ?? 'Unknown' : 'Unknown', toEmployee: employeeName });
+  revalidatePath('/assets');
+  return { success: true, data: undefined };
+}
+
+export async function recommissionAsset(assetId: string): Promise<ActionResult> {
+  await connectDB();
+  const asset = await Asset.findById(assetId);
+  if (!asset) return { success: false, error: 'Asset not found' };
+
+  asset.status = 'In Stock';
+  asset.isDeleted = false;
+  await asset.save();
+
+  const { userId, userName } = await getActor();
+  await writeLog({ userId, userName, action: 'ASSET_RECOMMISSION', description: `Recommissioned asset ${asset.assetCode} — returned to In Stock`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }
@@ -195,7 +210,7 @@ export async function decommissionAsset(assetId: string, reason: string): Promis
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_DECOMMISSION' as any, description: `Decommissioned asset ${asset.assetCode}: ${reason}`, relatedModel: 'Asset', relatedId: assetId });
+  await writeLog({ userId, userName, action: 'ASSET_DECOMMISSION', description: `Decommissioned asset ${asset.assetCode}: ${reason}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, reason });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }

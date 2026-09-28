@@ -1,8 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Box, Typography, Chip, Divider } from '@mui/material';
 import { getAssetById } from '@/lib/data/assets';
-import { getEmployeeOptions } from '@/lib/data/employees';
-import { AssetLifecycleTestPanel } from '../_components/AssetLifecycleTestPanel';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -10,10 +8,7 @@ interface Props {
 
 export default async function AssetDetailPage({ params }: Props) {
   const { id } = await params;
-  const [asset, employees] = await Promise.all([
-    getAssetById(id),
-    getEmployeeOptions(),
-  ]);
+  const asset = await getAssetById(id);
 
   if (!asset) notFound();
 
@@ -44,8 +39,6 @@ export default async function AssetDetailPage({ params }: Props) {
 
       <Divider sx={{ mb: 2 }} />
 
-      {/* Lifecycle Test Panel */}
-      <AssetLifecycleTestPanel asset={asset} employees={employees} />
     </Box>
   );
 }

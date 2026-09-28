@@ -5,16 +5,17 @@ import {
   Box, Typography, Grid, Chip, Divider, Paper, Skeleton, MenuItem, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { Close, PublishedWithChanges, AssignmentTurnedIn, MoveDown, DesktopAccessDisabled } from '@mui/icons-material';
 import { useMemo, useState, useTransition, useEffect } from 'react';
 import {
   calculateCurrentValue,
   isFullyDepreciated,
   getMonthlyDepreciationSchedule,
 } from '@/lib/depreciation';
-import type { AssetRow } from '@/types';
-import { transferAsset, assignAsset, returnAsset, decommissionAsset } from '@/actions/assetActions';
+import type { AssetRow, AssetLogEntry } from '@/types';
+import { transferAsset, assignAsset, returnAsset, decommissionAsset, recommissionAsset } from '@/actions/assetActions';
 import { AssignDialog } from './AssignDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 const TYPE_COLORS: Record<string, string> = {
   laptop:  '#F05340',
@@ -40,6 +41,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
   const [isAssigned, setIsAssigned] = useState(asset.isAssigned);
   const [assignedTo, setAssignedTo] = useState(asset.assignedTo);
   const [assignmentHistory, setAssignmentHistory] = useState(asset.assignmentHistory);
+  const [assetLog, setAssetLog] = useState<AssetLogEntry[]>([]);
   
   // Dialog state
   const [assignOpen, setAssignOpen] = useState(false);
@@ -47,6 +49,8 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
   const [transferAction, setTransferAction] = useState<'transfer' | 'return' | null>(null);
   const [transferEmpId, setTransferEmpId] = useState('');
   const [dialogKey, setDialogKey] = useState(0);
+  const [decommissionOpen, setDecommissionOpen] = useState(false);
+  const [recommissionOpen, setRecommissionOpen] = useState(false);
 
   // Refresh data when opening dialog with new asset
   const [currentAsset, setCurrentAsset] = useState(asset);
@@ -60,6 +64,14 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
     }
   }, [asset]);
 
+  // Fetch asset log
+  useEffect(() => {
+    fetch(`/api/assets/${asset._id}/log`)
+      .then((res) => res.json())
+      .then(setAssetLog)
+      .catch(() => setAssetLog([]));
+  }, [asset._id]);
+
   // Get current assigned employee name (for filtering out from transfer list)
   // Note: assignmentHistory only contains employeeName, not employeeId
   const currentEmployeeName = assignmentHistory.length > 0 && !assignmentHistory[assignmentHistory.length - 1].returnedAt
@@ -70,11 +82,13 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
     if (!transferEmpId && transferAction === 'transfer') return;
     
     if (transferAction === 'return') {
+      const returnerName = assignedTo ?? 'Unknown';
       // Optimistic update
       setStatus('In Stock');
       setIsAssigned(false);
       setAssignedTo(undefined);
-      
+      setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Return', details: `${returnerName} > Returned` }]);
+
       // Call returnAsset for returning to inventory
       startTransition(async () => {
         await returnAsset(asset._id);
@@ -88,19 +102,21 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
       // Transfer to new employee
       const emp = employees.find((e) => e._id === transferEmpId);
       const employeeName = emp?.employeeName ?? 'Unknown Employee';
-      
+      const transferrerName = assignedTo ?? 'Unknown';
+
       // Optimistic update
       setStatus('In Use');
       setIsAssigned(true);
       setAssignedTo(employeeName);
-      
+      setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Transfer', details: `${transferrerName} > ${employeeName}` }]);
+
       const formData = {
         employeeId: transferEmpId,
         employeeName: employeeName,
         assignedAt: new Date().toISOString().split('T')[0],
         notes: '',
       };
-      
+
       startTransition(async () => {
         await assignAsset(asset._id, formData);
         setTransferOpen(false);
@@ -112,10 +128,9 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
     }
   }
 
-  const handleDecommission = async () => {
-    const reason = prompt('Enter decommission reason:');
-    if (reason) await decommissionAsset(asset._id, reason);
-  };
+  const handleDecommission = () => setDecommissionOpen(true);
+
+  const handleRecommission = () => setRecommissionOpen(true);
 
   const currentValue = useMemo(
     () => isCustom ? calculateCurrentValue(asset.acquisitionCost, asset.acquisitionDate) : null,
@@ -132,28 +147,40 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
     [isCustom, asset.acquisitionCost, asset.acquisitionDate]
   );
 
-  const AssignmentHistoryTable = ({ rows }: { rows: AssetRow['assignmentHistory'] }) => (
+  const ACTION_COLORS: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
+    'Asset created': 'default',
+    'Assign': 'warning',
+    'Return': 'info',
+    'Transfer': 'info',
+    'Decommission': 'error',
+    'Recommission': 'success',
+  };
+
+  const AssetLogTable = ({ rows }: { rows: AssetLogEntry[] }) => (
     <TableContainer>
       <Table size="small" sx={{ width: '100%' }}>
         <TableHead>
           <TableRow>
-            <TableCell><strong>Employee</strong></TableCell>
-            <TableCell><strong>Assigned Date</strong></TableCell>
-            <TableCell><strong>Returned Date</strong></TableCell>
-            <TableCell><strong>Notes</strong></TableCell>
+            <TableCell><strong>Date</strong></TableCell>
+            <TableCell><strong>Action</strong></TableCell>
+            <TableCell><strong>Details/Notes</strong></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((h, i) => (
+          {rows.map((entry, i) => (
             <TableRow key={i}>
-              <TableCell sx={{ fontSize: '0.72rem' }}>{h.employeeName}</TableCell>
-              <TableCell sx={{ fontSize: '0.72rem' }}>{h.assignedAt.split('T')[0]}</TableCell>
-              <TableCell>
-                {h.returnedAt
-                  ? <span style={{ fontSize: '0.72rem' }}>{h.returnedAt.split('T')[0]}</span>
-                  : <Chip label="Currently Assigned" color="warning" size="small" sx={{ fontSize: '0.65rem' }} />}
+              <TableCell sx={{ fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
+                {new Date(entry.date).toLocaleDateString('en-CA')}
               </TableCell>
-              <TableCell sx={{ fontSize: '0.72rem' }}>{h.notes ?? '—'}</TableCell>
+              <TableCell>
+                <Chip
+                  label={entry.action}
+                  size="small"
+                  color={ACTION_COLORS[entry.action] ?? 'default'}
+                  sx={{ fontSize: '0.65rem', height: 20 }}
+                />
+              </TableCell>
+              <TableCell sx={{ fontSize: '0.72rem' }}>{entry.details}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -231,6 +258,23 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
                       )}
                     </Box>
                   )}
+
+                  <Divider sx={{ my: 1 }} />
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 'auto' }}>
+                    {status === 'In Use' && (
+                      <Button variant="outlined" size="small" color="info" startIcon={<MoveDown />} onClick={() => { setTransferOpen(true); setTransferAction(null); setTransferEmpId(''); }}>Transfer / Return</Button>
+                    )}
+                    {status === 'In Stock' && (
+                      <>
+                        <Button variant="outlined" size="small" color="warning" startIcon={<AssignmentTurnedIn />} onClick={() => setAssignOpen(true)}>Assign</Button>
+                        <Button variant="outlined" size="small" color="error" startIcon={<DesktopAccessDisabled />} onClick={handleDecommission}>Decommission</Button>
+                      </>
+                    )}
+                    {status === 'Decommissioned' && (
+                      <Button variant="outlined" size="small" color="success" startIcon={<PublishedWithChanges />} onClick={handleRecommission}>Recommission</Button>
+                    )}
+                  </Box>
                 </Box>
               </Paper>
             </Grid>
@@ -280,40 +324,23 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
                     </TableContainer>
                   </Paper>
 
-                  {/* Assignment History (custom panel) */}
-                  {asset.assignmentHistory.length > 0 && (
-                    <Paper sx={{ p: 2 }}>
-                      <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Assignment History</Typography>
-                      <AssignmentHistoryTable rows={asset.assignmentHistory} />
-                    </Paper>
-                  )}
+                  {/* Asset Log (custom panel) */}
+                  <Paper sx={{ p: 2 }}>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Asset Log</Typography>
+                    <AssetLogTable rows={assetLog} />
+                  </Paper>
                 </Box>
               </Grid>
             )}
 
-            {/* ── ACTION BUTTONS ── */}
-            <Grid size={{ xs: 12 }}>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-                {status === 'In Use' && (
-                  <>
-                    <Button variant="outlined" size="small" onClick={() => setTransferOpen(true)}>Transfer / Return</Button>
-                  </>
-                )}
-                {status === 'In Stock' && (
-                  <>
-                    <Button variant="outlined" size="small" onClick={() => setAssignOpen(true)}>Assign</Button>
-                    <Button variant="outlined" size="small" color="error" onClick={handleDecommission}>Decommission</Button>
-                  </>
-                )}
-              </Box>
-            </Grid>
 
-            {/* Assignment History for non-custom (below left panel) */}
-            {!isCustom && asset.assignmentHistory.length > 0 && (
+
+            {/* Asset Log for non-custom (below left panel) */}
+            {!isCustom && (
               <Grid size={{ xs: 12 }}>
                 <Paper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Assignment History</Typography>
-                  <AssignmentHistoryTable rows={asset.assignmentHistory} />
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Asset Log</Typography>
+                  <AssetLogTable rows={assetLog} />
                 </Paper>
               </Grid>
             )}
@@ -333,10 +360,52 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
             setIsAssigned(newIsAssigned);
             setAssignedTo(newAssignedTo);
           }}
+          onLogUpdate={(action, details) => {
+            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action, details }]);
+          }}
         />
       )}
 
-      {/* ── Transfer sub-dialog ── */}
+      {/* ── Decommission confirmation dialog ── */}
+      <ConfirmDialog
+        open={decommissionOpen}
+        title={`Decommission ${asset.assetCode}?`}
+        message="This will soft-delete the asset and set its status to Decommissioned."
+        confirmLabel="Decommission"
+        requireText="Reason for decommission"
+        requirePlaceholder="e.g. Damaged beyond repair, End of life, Lost"
+        onConfirm={async (reason) => {
+          const res = await decommissionAsset(asset._id, reason);
+          if (res.success) {
+            setStatus('Decommissioned');
+            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Decommission', details: reason }]);
+            setDecommissionOpen(false);
+          }
+          return res.success;
+        }}
+        onCancel={() => setDecommissionOpen(false)}
+      />
+
+      {/* ── Recommission confirmation dialog ── */}
+      <ConfirmDialog
+        open={recommissionOpen}
+        title={`Recommission ${asset.assetCode}?`}
+        message='This will set the asset status back to "In Stock".'
+        confirmLabel="Recommission"
+        confirmColor="success"
+        onConfirm={async () => {
+          const res = await recommissionAsset(asset._id);
+          if (res.success) {
+            setStatus('In Stock');
+            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Recommission', details: 'Returned to service' }]);
+            setRecommissionOpen(false);
+          }
+          return res.success;
+        }}
+        onCancel={() => setRecommissionOpen(false)}
+      />
+
+      {/* ── Transfer / Return sub-dialog ── */}
       <Dialog open={transferOpen} onClose={() => { setTransferOpen(false); setTransferAction(null); setTransferEmpId(''); }} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 700 }}>
           Transfer / Return Asset
@@ -345,33 +414,27 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ pt: '12px !important' }}>
-          {transferAction === null && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="body2" sx={{ textAlign: 'center' }}>
-                What would you like to do with this asset?
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Button 
-                  variant="contained" 
-                  size="large"
-                  onClick={() => setTransferAction('transfer')}
-                  sx={{ minWidth: 120 }}
-                >
-                  Transfer
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  size="large"
-                  color="error"
-                  onClick={() => setTransferAction('return')}
-                  sx={{ minWidth: 120 }}
-                >
-                  Return
-                </Button>
-              </Box>
-            </Box>
-          )}
-          
+          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+            <Button
+              variant={transferAction === 'transfer' ? 'contained' : 'outlined'}
+              size="small"
+              color="info"
+              onClick={() => { setTransferAction('transfer'); setTransferEmpId(''); }}
+              sx={{ flex: 1 }}
+            >
+              Transfer
+            </Button>
+            <Button
+              variant={transferAction === 'return' ? 'contained' : 'outlined'}
+              size="small"
+              color="error"
+              onClick={() => { setTransferAction('return'); setTransferEmpId(''); }}
+              sx={{ flex: 1 }}
+            >
+              Return
+            </Button>
+          </Box>
+
           {transferAction === 'return' && (
             <Box sx={{ textAlign: 'center', py: 2 }}>
               <Typography variant="body2" color="error" sx={{ mb: 1 }}>
@@ -382,7 +445,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
               </Typography>
             </Box>
           )}
-          
+
           {transferAction === 'transfer' && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -405,8 +468,8 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
         </DialogContent>
         {transferAction && (
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button size="small" onClick={() => setTransferAction(null)}>Back</Button>
-            <Button 
+            <Button size="small" onClick={() => { setTransferAction(null); setTransferEmpId(''); }}>Back</Button>
+            <Button
               size="small"
               variant="contained"
               disabled={transferAction === 'transfer' && !transferEmpId}

@@ -85,7 +85,7 @@ export function AssetTable({
         if (status === 'In Use') color = 'warning';
         else if (status === 'In Stock' || status === 'Available') color = 'success';
         else if (status === 'Decommissioned') color = 'error';
-        else if (status === 'Pending Delivery') color = 'info';
+        else if (status === 'Pending Delivery') color = 'default';
         
         return (
           <Chip label={status || 'Unknown'} size="small"
@@ -138,7 +138,7 @@ export function AssetTable({
       paginationMode="server"
       sortingMode="server"
       checkboxSelection
-      onSelectionModelChange={() => {}}
+      onRowSelectionModelChange={() => {}}
       pageSizeOptions={[50, 75, 100]}
       paginationModel={{ page: pagination.page, pageSize: pagination.pageSize }}
       onPaginationModelChange={onPaginationChange}
