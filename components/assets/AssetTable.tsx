@@ -81,11 +81,11 @@ export function AssetTable({
       field: 'status', headerName: 'Status', width: 120,
       renderCell: ({ value }) => {
         const status = value as string;
-        let color: 'default' | 'success' | 'warning' | 'error' = 'default';
+        let color: 'default' | 'success' | 'warning' | 'error' | 'info' = 'default';
         if (status === 'In Use') color = 'warning';
         else if (status === 'In Stock' || status === 'Available') color = 'success';
         else if (status === 'Decommissioned') color = 'error';
-        else if (status === 'Pending Delivery') color = 'default';
+        else if (status === 'Ordered') color = 'info';
         
         return (
           <Chip label={status || 'Unknown'} size="small"
@@ -111,11 +111,7 @@ export function AssetTable({
               </IconButton>
             </Tooltip>
           )}
-          {row.status === 'Pending Delivery' && onConfirmDelivery && (
-            <Button size="small" onClick={() => onConfirmDelivery(row)} sx={{ fontSize: '0.65rem', minWidth: 'auto', px: 1 }}>
-              Confirm
-            </Button>
-          )}
+
           {onDelete && (
             <Tooltip title="Delete">
               <IconButton size="small" color="error" onClick={() => onDelete(row)}>

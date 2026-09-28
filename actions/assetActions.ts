@@ -27,7 +27,7 @@ export async function createAsset(formData: unknown): Promise<ActionResult<strin
   const isPending = isPendingDelivery === 'on' || isPendingDelivery === 'true';
   const assetData = {
     ...data,
-    status: isPending ? 'Pending Delivery' : 'In Stock',
+    status: isPending ? 'Ordered' : 'In Stock',
     acquisitionDate: isPending ? undefined : data.acquisitionDate,
   };
 
@@ -155,8 +155,11 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
   const employee = await Employee.findById(newEmployeeId).select('employeeName').lean();
   const employeeName = employee?.employeeName ?? 'Unknown Employee';
 
-  // close current assignment if exists
+  // Capture the current employee's name BEFORE updating the assignment
+  let currentEmployeeName = 'Unknown';
   if (asset.currentAssignment) {
+    const currentEmp = await Employee.findById(asset.currentAssignment.employeeId).select('employeeName').lean();
+    currentEmployeeName = currentEmp?.employeeName ?? 'Unknown Employee';
     const last = asset.assignmentHistory.at(-1);
     if (last && !last.returnedAt) last.returnedAt = new Date();
   }
@@ -168,7 +171,7 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_TRANSFER', description: `Transferred asset ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: asset.currentAssignment ? (await Employee.findById(asset.currentAssignment.employeeId).select('employeeName').lean())?.employeeName ?? 'Unknown' : 'Unknown', toEmployee: employeeName });
+  await writeLog({ userId, userName, action: 'ASSET_TRANSFER', description: `Transferred asset ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: currentEmployeeName, toEmployee: employeeName });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }

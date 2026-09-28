@@ -2,7 +2,7 @@ import { Schema, model, models, Document, Types } from 'mongoose';
 
 export const ASSET_TYPES = ['laptop', 'desktop', 'display'] as const;
 export const DEPRECIATION_METHODS = ['straight-line', 'declining-balance', 'custom'] as const;
-export const ASSET_STATUSES = ['Pending Delivery', 'In Stock', 'In Use', 'Decommissioned'] as const;
+export const ASSET_STATUSES = ['Ordered', 'In Stock', 'In Use', 'Decommissioned'] as const;
 
 export type AssetType = (typeof ASSET_TYPES)[number];
 export type AssetStatus = (typeof ASSET_STATUSES)[number];

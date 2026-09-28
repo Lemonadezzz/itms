@@ -5,7 +5,7 @@ import {
   Box, Typography, Grid, Chip, Divider, Paper, Skeleton, MenuItem, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
-import { Close, PublishedWithChanges, AssignmentTurnedIn, MoveDown, DesktopAccessDisabled } from '@mui/icons-material';
+import { Close, PublishedWithChanges, AssignmentTurnedIn, MoveDown, DesktopAccessDisabled, MoveUp } from '@mui/icons-material';
 import { useMemo, useState, useTransition, useEffect } from 'react';
 import {
   calculateCurrentValue,
@@ -14,8 +14,10 @@ import {
 } from '@/lib/depreciation';
 import type { AssetRow, AssetLogEntry } from '@/types';
 import { transferAsset, assignAsset, returnAsset, decommissionAsset, recommissionAsset } from '@/actions/assetActions';
+// Note: transferAsset is the server action for transfers, assignAsset is for new assignments
 import { AssignDialog } from './AssignDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ConfirmDeliveryDialog } from './ConfirmDeliveryDialog';
 
 const TYPE_COLORS: Record<string, string> = {
   laptop:  '#F05340',
@@ -51,6 +53,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
   const [dialogKey, setDialogKey] = useState(0);
   const [decommissionOpen, setDecommissionOpen] = useState(false);
   const [recommissionOpen, setRecommissionOpen] = useState(false);
+  const [confirmDeliveryOpen, setConfirmDeliveryOpen] = useState(false);
 
   // Refresh data when opening dialog with new asset
   const [currentAsset, setCurrentAsset] = useState(asset);
@@ -118,7 +121,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
       };
 
       startTransition(async () => {
-        await assignAsset(asset._id, formData);
+        await transferAsset(asset._id, transferEmpId);
         setTransferOpen(false);
         setTransferAction(null);
         setTransferEmpId('');
@@ -226,7 +229,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
                         status === 'In Use' ? 'warning' :
                         status === 'In Stock' ? 'success' :
                         status === 'Decommissioned' ? 'error' :
-                        status === 'Pending Delivery' ? 'info' :
+                        status === 'Ordered' ? 'info' :
                         'default'
                       } sx={{ fontSize: '0.75rem' }} />
                   } />
@@ -262,6 +265,9 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
                   <Divider sx={{ my: 1 }} />
 
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 'auto' }}>
+                    {status === 'Ordered' && (
+                      <Button variant="outlined" size="small" color="info" startIcon={<MoveUp />} onClick={() => setConfirmDeliveryOpen(true)}>Confirm Delivery</Button>
+                    )}
                     {status === 'In Use' && (
                       <Button variant="outlined" size="small" color="info" startIcon={<MoveDown />} onClick={() => { setTransferOpen(true); setTransferAction(null); setTransferEmpId(''); }}>Transfer / Return</Button>
                     )}
@@ -385,6 +391,18 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
         }}
         onCancel={() => setDecommissionOpen(false)}
       />
+
+      {/* ── Confirm Delivery dialog ── */}
+      {confirmDeliveryOpen && (
+        <ConfirmDeliveryDialog
+          asset={asset}
+          onClose={() => setConfirmDeliveryOpen(false)}
+          onUpdate={(newStatus) => setStatus(newStatus)}
+          onLogUpdate={(action, details) => {
+            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action, details }]);
+          }}
+        />
+      )}
 
       {/* ── Recommission confirmation dialog ── */}
       <ConfirmDialog

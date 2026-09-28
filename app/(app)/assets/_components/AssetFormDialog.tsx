@@ -62,7 +62,7 @@ export function AssetFormDialog({ open, asset, onClose, onError }: Props) {
             <Grid size={{ xs: 12 }}>
               <FormControlLabel
                 control={<Checkbox name="isPendingDelivery" checked={isPendingCheckbox} onChange={(e) => setIsPendingCheckbox(e.target.checked)} />}
-                label="Item is Pending Delivery (Not Yet Received)"
+                label="Item is Ordered (Not Yet Received)"
               />
             </Grid>
             {!isPendingCheckbox && (

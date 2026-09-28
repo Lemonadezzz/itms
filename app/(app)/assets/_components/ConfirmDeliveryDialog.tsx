@@ -11,9 +11,11 @@ import type { AssetRow } from '@/types';
 interface Props {
   asset: AssetRow;
   onClose: () => void;
+  onUpdate?: (newStatus: string) => void;
+  onLogUpdate?: (action: string, details: string) => void;
 }
 
-export function ConfirmDeliveryDialog({ asset, onClose }: Props) {
+export function ConfirmDeliveryDialog({ asset, onClose, onUpdate, onLogUpdate }: Props) {
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
 
@@ -23,6 +25,8 @@ export function ConfirmDeliveryDialog({ asset, onClose }: Props) {
     startTransition(async () => {
       const res = await confirmDelivery(asset._id, fd.get('acquisitionDate') as string);
       if (!res.success) return setError(res.error);
+      if (onUpdate) onUpdate('In Stock');
+      if (onLogUpdate) onLogUpdate('Delivery Confirmed', `Asset received and set to In Stock`);
       onClose();
     });
   }
