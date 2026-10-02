@@ -109,6 +109,13 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
   if (!asset) return { success: false, error: 'Asset not found' };
   if (!asset.currentAssignment) return { success: false, error: 'Asset is not assigned' };
 
+  // Capture the current employee's name BEFORE clearing the assignment
+  let currentEmployeeName = 'Unknown';
+  if (asset.currentAssignment) {
+    const currentEmp = await Employee.findById(asset.currentAssignment.employeeId).select('employeeName').lean();
+    currentEmployeeName = currentEmp?.employeeName ?? 'Unknown Employee';
+  }
+
   const last = asset.assignmentHistory.at(-1);
   if (last && !last.returnedAt) last.returnedAt = returnedDate;
   asset.currentAssignment = undefined;
@@ -116,7 +123,7 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'return', description: `Returned asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: asset.currentAssignment ? (await Employee.findById(asset.currentAssignment.employeeId).select('employeeName').lean())?.employeeName ?? 'Unknown' : 'Unknown' });
+  await writeLog({ userId, userName, action: 'return', description: `Returned asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: currentEmployeeName });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }

@@ -45,23 +45,60 @@ function getRemainingRatio(monthNumber: number): number {
   return 0.025 - monthsInPhase * monthlyRate;
 }
 
-export function calculateCurrentValue(acquisitionCost: number, acquisitionDate: string): number {
-  // Client-side calculation uses current time, server-side uses fixed reference
+function getStraightLineRatio(monthNumber: number): number {
+  if (monthNumber <= 0) return 1.0;
+  if (monthNumber >= 60) return 0.0;
+  const annualRate = 0.20;
+  const monthlyRate = annualRate / 12;
+  return Math.max(1.0 - monthNumber * monthlyRate, 0);
+}
+
+function getDecliningBalanceRatio(monthNumber: number): number {
+  if (monthNumber <= 0) return 1.0;
+  if (monthNumber >= 60) return 0.0;
+  const annualRate = 0.40;
+  const yearsElapsed = Math.floor((monthNumber - 1) / 12);
+  const currentYearMonth = ((monthNumber - 1) % 12) + 1;
+  const startOfYearValue = Math.pow(1 - annualRate, yearsElapsed);
+  const monthlyRate = annualRate / 12;
+  return Math.max(startOfYearValue * (1 - monthlyRate * (currentYearMonth - 1)), 0);
+}
+
+export function calculateCurrentValue(
+  acquisitionCost: number,
+  acquisitionDate: string,
+  method: string = 'custom',
+  assignedDate?: string
+): number {
   const isServer = typeof window === 'undefined';
   const now = isServer ? REFERENCE_DATE : Date.now();
+
+  const startDate = method === 'custom' && assignedDate ? assignedDate : acquisitionDate;
   const monthsElapsed = Math.floor(
-    (now - new Date(acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+    (now - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
   );
   if (monthsElapsed >= 60) return 0;
 
   const monthNumber = monthsElapsed + 1;
-  const ratio = getRemainingRatio(monthNumber);
+  let ratio: number;
+  if (method === 'straight-line') {
+    ratio = getStraightLineRatio(monthNumber);
+  } else if (method === 'declining-balance') {
+    ratio = getDecliningBalanceRatio(monthNumber);
+  } else {
+    ratio = getRemainingRatio(monthNumber);
+  }
 
   return Math.max(Math.round(acquisitionCost * ratio * 100) / 100, 0);
 }
 
-export function isFullyDepreciated(acquisitionCost: number, acquisitionDate: string): boolean {
-  return calculateCurrentValue(acquisitionCost, acquisitionDate) <= 0;
+export function isFullyDepreciated(
+  acquisitionCost: number,
+  acquisitionDate: string,
+  method: string = 'custom',
+  assignedDate?: string
+): boolean {
+  return calculateCurrentValue(acquisitionCost, acquisitionDate, method, assignedDate) <= 0;
 }
 
 export type DepreciationMonthRow = {
@@ -73,21 +110,28 @@ export type DepreciationMonthRow = {
 
 export function getMonthlyDepreciationSchedule(
   acquisitionCost: number,
-  acquisitionDate: string
+  acquisitionDate: string,
+  method: string = 'custom',
+  assignedDate?: string
 ): DepreciationMonthRow[] {
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const acqDate = new Date(acquisitionDate);
+  const startDate = method === 'custom' && assignedDate ? assignedDate : acquisitionDate;
+  const acqDate = new Date(startDate);
 
-  // Client-side calculation uses current time, server-side uses fixed reference
+  // For custom depreciation, start from the first day of the next month
+  const depreciationStartDate = method === 'custom' && assignedDate
+    ? new Date(acqDate.getFullYear(), acqDate.getMonth() + 1, 1)
+    : acqDate;
+
   const isServer = typeof window === 'undefined';
   const now = isServer ? REFERENCE_DATE : Date.now();
   const monthsElapsed = Math.floor(
-    (now - acqDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+    (now - depreciationStartDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
   );
   const fullyDepreciated = monthsElapsed >= 60;
   const currentYear = fullyDepreciated ? null : Math.min(Math.floor(monthsElapsed / 12) + 1, 5);
   const currentMonthInYear = monthsElapsed % 12;
-  const startMonth = acqDate.getMonth() % 12;
+  const startMonth = depreciationStartDate.getMonth() % 12;
 
   return Array.from({ length: 12 }, (_, month) => {
     const adjustedMonth = (startMonth + month) % 12;
@@ -95,7 +139,14 @@ export function getMonthlyDepreciationSchedule(
 
     const yearValues = [1, 2, 3, 4, 5].map((year) => {
       const monthNumber = (year - 1) * 12 + month + 1;
-      const ratio = getRemainingRatio(monthNumber);
+      let ratio: number;
+      if (method === 'straight-line') {
+        ratio = getStraightLineRatio(monthNumber);
+      } else if (method === 'declining-balance') {
+        ratio = getDecliningBalanceRatio(monthNumber);
+      } else {
+        ratio = getRemainingRatio(monthNumber);
+      }
       return Math.max(Math.round(acquisitionCost * ratio * 100) / 100, 0);
     });
 

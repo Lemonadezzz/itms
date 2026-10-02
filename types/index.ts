@@ -21,6 +21,7 @@ export type AssetRow = {
   acquisitionCost: number;
   ageInMonths: number;
   assignedTo?: string;
+  assignedDate?: string;
   isAssigned: boolean;
   status?: string;
   depreciationMethod?: string;

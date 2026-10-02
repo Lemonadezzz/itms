@@ -2,7 +2,7 @@
 
 import { DataGrid, GridColDef, GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
 import { Chip, Box, IconButton, Tooltip, Button } from '@mui/material';
-import { Edit, Delete, Visibility } from '@mui/icons-material';
+import { Edit, Delete, DisplaySettings } from '@mui/icons-material';
 import type { AssetRow, PaginationParams } from '@/types';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -98,19 +98,13 @@ export function AssetTable({
       renderCell: ({ row }) => (
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           {onDetail && (
-            <Tooltip title="See Details">
+            <Tooltip title="Manage Asset">
               <IconButton size="small" onClick={() => onDetail(row)}>
-                <Visibility sx={{ fontSize: 15 }} />
+                <DisplaySettings sx={{ fontSize: 15 }} />
               </IconButton>
             </Tooltip>
           )}
-          {onEdit && (
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => onEdit(row)}>
-                <Edit sx={{ fontSize: 15 }} />
-              </IconButton>
-            </Tooltip>
-          )}
+
 
           {onDelete && (
             <Tooltip title="Delete">

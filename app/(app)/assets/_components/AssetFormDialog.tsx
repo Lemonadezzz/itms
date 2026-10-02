@@ -14,9 +14,10 @@ interface Props {
   asset?: AssetRow | null;
   onClose: () => void;
   onError?: (msg: string) => void;
+  onUpdate?: (updatedAsset: AssetRow) => void;
 }
 
-export function AssetFormDialog({ open, asset, onClose, onError }: Props) {
+export function AssetFormDialog({ open, asset, onClose, onError, onUpdate }: Props) {
   const [isPendingCheckbox, setIsPendingCheckbox] = useState(false);
   const [isPendingSubmit, startTransition] = useTransition();
   const isEdit = !!asset;
@@ -27,6 +28,17 @@ export function AssetFormDialog({ open, asset, onClose, onError }: Props) {
     startTransition(async () => {
       const res = isEdit ? await updateAsset(asset._id, data) : await createAsset(data);
       if (!res.success) return onError?.(res.error);
+      if (isEdit && onUpdate) {
+        onUpdate({
+          ...asset!,
+          assetName: data.assetName as string,
+          assetCode: data.assetCode as string,
+          assetType: data.assetType as 'laptop' | 'desktop' | 'display',
+          location: data.location as string,
+          acquisitionCost: Number(data.acquisitionCost),
+          depreciationMethod: data.depreciationMethod as string,
+        });
+      }
       onClose();
     });
   }

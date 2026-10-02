@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip } from '@mui/material';
-import { Add, Search, Edit, Delete, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
+import { Add, Search, EditNote, Delete, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
 import { deleteEmployee, offboardEmployee } from '@/actions/employeeActions';
@@ -55,7 +55,7 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
         <Box>
           <Tooltip title="Edit">
             <IconButton size="small" onClick={() => { setEditing(row); setDialogOpen(true); }}>
-              <Edit sx={{ fontSize: 15 }} />
+              <EditNote sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
           {row.status === 'Active' ? (

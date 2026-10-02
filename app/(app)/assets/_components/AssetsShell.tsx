@@ -82,6 +82,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           asset={detailTarget}
           employees={employees}
           onClose={() => setDetailTarget(null)}
+          onEdit={() => setEditTarget(detailTarget)}
         />
       )}
 
@@ -90,6 +91,11 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
         asset={editTarget}
         onClose={() => { setCreateOpen(false); setEditTarget(null); }}
         onError={setErrorMsg}
+        onUpdate={(updatedAsset) => {
+          if (detailTarget) {
+            setDetailTarget(updatedAsset);
+          }
+        }}
       />
 
       {confirmDeliveryTarget && (

@@ -3,9 +3,9 @@
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   Box, Typography, Grid, Chip, Divider, Paper, Skeleton, MenuItem, TextField,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, IconButton,
 } from '@mui/material';
-import { Close, PublishedWithChanges, AssignmentTurnedIn, MoveDown, DesktopAccessDisabled, MoveUp } from '@mui/icons-material';
+import { Close, PublishedWithChanges, AssignmentTurnedIn, MoveDown, DesktopAccessDisabled, MoveUp, Edit } from '@mui/icons-material';
 import { useMemo, useState, useTransition, useEffect } from 'react';
 import {
   calculateCurrentValue,
@@ -20,7 +20,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ConfirmDeliveryDialog } from './ConfirmDeliveryDialog';
 
 const TYPE_COLORS: Record<string, string> = {
-  laptop:  '#F05340',
+  laptop: '#F05340',
   desktop: '#4085F0',
   display: '#269066',
 };
@@ -32,19 +32,21 @@ interface Props {
   asset: AssetRow;
   onClose: () => void;
   employees?: { _id: string; employeeName: string }[];
+  onEdit?: () => void;
 }
 
-export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
+export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Props) {
   const isCustom = asset.depreciationMethod === 'custom';
+  const hasDepreciation = !!asset.depreciationMethod;
   const [, startTransition] = useTransition();
-  
+
   // Optimistic update state
   const [status, setStatus] = useState(asset.status);
   const [isAssigned, setIsAssigned] = useState(asset.isAssigned);
   const [assignedTo, setAssignedTo] = useState(asset.assignedTo);
   const [assignmentHistory, setAssignmentHistory] = useState(asset.assignmentHistory);
   const [assetLog, setAssetLog] = useState<AssetLogEntry[]>([]);
-  
+
   // Dialog state
   const [assignOpen, setAssignOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -83,7 +85,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
 
   async function handleTransferSubmit() {
     if (!transferEmpId && transferAction === 'transfer') return;
-    
+
     if (transferAction === 'return') {
       const returnerName = assignedTo ?? 'Unknown';
       // Optimistic update
@@ -136,18 +138,18 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
   const handleRecommission = () => setRecommissionOpen(true);
 
   const currentValue = useMemo(
-    () => isCustom ? calculateCurrentValue(asset.acquisitionCost, asset.acquisitionDate) : null,
-    [isCustom, asset.acquisitionCost, asset.acquisitionDate]
+    () => asset.depreciationMethod ? calculateCurrentValue(asset.acquisitionCost, asset.acquisitionDate, asset.depreciationMethod, asset.assignedDate) : null,
+    [asset.depreciationMethod, asset.acquisitionCost, asset.acquisitionDate, asset.assignedDate]
   );
 
   const fullyDepreciated = useMemo(
-    () => isCustom ? isFullyDepreciated(asset.acquisitionCost, asset.acquisitionDate) : false,
-    [isCustom, asset.acquisitionCost, asset.acquisitionDate]
+    () => asset.depreciationMethod ? isFullyDepreciated(asset.acquisitionCost, asset.acquisitionDate, asset.depreciationMethod, asset.assignedDate) : false,
+    [asset.depreciationMethod, asset.acquisitionCost, asset.acquisitionDate, asset.assignedDate]
   );
 
   const schedule = useMemo(
-    () => isCustom ? getMonthlyDepreciationSchedule(asset.acquisitionCost, asset.acquisitionDate) : [],
-    [isCustom, asset.acquisitionCost, asset.acquisitionDate]
+    () => asset.depreciationMethod ? getMonthlyDepreciationSchedule(asset.acquisitionCost, asset.acquisitionDate, asset.depreciationMethod, asset.assignedDate) : [],
+    [asset.depreciationMethod, asset.acquisitionCost, asset.acquisitionDate, asset.assignedDate]
   );
 
   const ACTION_COLORS: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
@@ -198,45 +200,63 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
         open
         onClose={() => { onClose(); }}
         maxWidth={false}
-        PaperProps={{ sx: { display: 'flex', flexDirection: 'column', maxHeight: '90vh', width: 'auto', minWidth: 'auto' } }}
+        PaperProps={{ sx: { display: 'flex', flexDirection: 'column', maxHeight: '90vh', width: '90vw', minWidth: '600px', maxWidth: '1200px' } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', fontWeight: 700 }}>
-          Hardware Details — {asset.assetName}
+          Manage Asset: {asset.assetName}
           <Button onClick={onClose} size="small" sx={{ minWidth: 0 }}><Close fontSize="small" /></Button>
         </DialogTitle>
 
-        <DialogContent sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+        <DialogContent sx={{ flex: 1, overflow: 'auto', p: 1, minWidth: 0 }}>
           <Grid container spacing={1} sx={{ width: 'auto' }}>
 
             {/* ── LEFT PANEL ── */}
-            <Grid size={{ xs: 12, md: isCustom ? 4 : 12 }}>
+            <Grid size={{ xs: 12, md: hasDepreciation ? 4 : 12 }}>
               <Paper sx={{ p: 2, height: '100%', minHeight: isCustom ? 500 : 'auto', display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Device Information</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1" fontWeight={700}>Asset Information</Typography>
+                  <Tooltip title="Edit">
+                    <IconButton size="small" onClick={onEdit}>
+                      <Edit sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <InfoRow label="Asset Name"  value={asset.assetName} />
-                  <InfoRow label="Asset Code"  value={<span style={{ fontFamily: 'monospace' }}>{asset.assetCode}</span>} />
-                  <InfoRow label="Type" value={
+                  <InfoRow label="Asset Name" value={asset.assetName} />
+                  <InfoRow label="Asset Code" value={<span style={{ fontFamily: 'monospace' }}>{asset.assetCode}</span>} />
+                  <InfoRow label="Asset Type" value={
                     <Chip label={asset.assetType.charAt(0).toUpperCase() + asset.assetType.slice(1)}
                       size="small"
                       sx={{ bgcolor: TYPE_COLORS[asset.assetType] ?? '#888', color: '#fff', fontWeight: 700, fontSize: '0.75rem' }} />
                   } />
-                  <InfoRow label="Location"         value={asset.location} />
+                  <InfoRow label="Location" value={asset.location} />
                   <InfoRow label="Acquisition Date" value={new Date(asset.acquisitionDate).toLocaleDateString('en-CA')} />
+
+                  <Divider sx={{ my: 0.5 }} />
+
                   <InfoRow label="Status" value={
-                    <Chip label={status || 'Unknown'} size="small"
-                      color={
-                        status === 'In Use' ? 'warning' :
-                        status === 'In Stock' ? 'success' :
-                        status === 'Decommissioned' ? 'error' :
-                        status === 'Ordered' ? 'info' :
-                        'default'
-                      } sx={{ fontSize: '0.75rem' }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip label={status || 'Unknown'} size="small"
+                        color={
+                          status === 'In Use' ? 'warning' :
+                            status === 'In Stock' ? 'success' :
+                              status === 'Decommissioned' ? 'error' :
+                                status === 'Ordered' ? 'info' :
+                                  'default'
+                        } sx={{ fontSize: '0.75rem' }} />
+                      {isAssigned && (
+                        <Typography variant="body2" color="text.secondary">
+                          Assigned to {assignedTo}
+                        </Typography>
+                      )}
+                    </Box>
                   } />
-                  {isAssigned && <InfoRow label="Assigned To" value={assignedTo} />}
-                  {asset.depreciationMethod && (
-                    <InfoRow label="Depreciation" value={asset.depreciationMethod} />
-                  )}
+                  <InfoRow label="Issued Date" value={
+                    asset.assignedDate
+                      ? new Date(asset.assignedDate).toLocaleDateString('en-CA')
+                      : '-'
+                  } />
 
                   <Divider sx={{ my: 0.5 }} />
 
@@ -286,20 +306,20 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
             </Grid>
 
             {/* ── RIGHT PANEL — only for custom depreciation ── */}
-            {isCustom && (
+            {hasDepreciation && (
               <Grid size={{ xs: 12, md: 8 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minHeight: 500 }}>
 
-                  {/* Depreciation Schedule */}
+                  {/* Asset Value Schedule */}
                   <Paper sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 300 }}>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Depreciation Schedule</Typography>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Asset Value Schedule</Typography>
                     <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
-                      <Table size="small">
+                      <Table size="small" sx={{ '& .MuiTableCell-root': { px: 1, py: 0.5 } }}>
                         <TableHead>
                           <TableRow>
-                            {['Month', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5'].map((h) => (
+                            {['Month', 'Y1', 'Y2', 'Y3', 'Y4', 'Y5'].map((h) => (
                               <TableCell key={h} align={h === 'Month' ? 'left' : 'right'}>
-                                <strong>{h}</strong>
+                                <Typography variant="caption" fontWeight={700}>{h}</Typography>
                               </TableCell>
                             ))}
                           </TableRow>
@@ -308,8 +328,8 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
                           {schedule.map((row, i) => (
                             <TableRow key={i}>
                               <TableCell sx={{ bgcolor: row.isCurrent ? 'primary.light' : 'inherit' }}>
-                                <Typography variant="body2" fontWeight={row.isCurrent ? 700 : 400} sx={{ fontSize: '0.72rem' }}>
-                                  {row.month}{row.isCurrent ? ' (Current)' : ''}
+                                <Typography variant="caption" fontWeight={row.isCurrent ? 700 : 400}>
+                                  {row.month}{row.isCurrent ? '*' : ''}
                                 </Typography>
                               </TableCell>
                               {([1, 2, 3, 4, 5] as const).map((year) => {
@@ -317,7 +337,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
                                 return (
                                   <TableCell key={year} align="right"
                                     sx={{ bgcolor: isHighlighted ? 'primary.light' : 'inherit' }}>
-                                    <Typography variant="body2" fontWeight={isHighlighted ? 700 : 400} sx={{ fontSize: '0.72rem' }}>
+                                    <Typography variant="caption" fontWeight={isHighlighted ? 700 : 400}>
                                       {phpFormat(row[`year${year}` as keyof typeof row] as number)}
                                     </Typography>
                                   </TableCell>
@@ -342,7 +362,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [] }: Props) {
 
 
             {/* Asset Log for non-custom (below left panel) */}
-            {!isCustom && (
+            {!hasDepreciation && (
               <Grid size={{ xs: 12 }}>
                 <Paper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Asset Log</Typography>
