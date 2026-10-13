@@ -94,9 +94,9 @@ export function AssetTable({
       },
     },
     {
-      field: 'actions', headerName: '', width: 110, sortable: false,
+      field: 'actions', headerName: '', width: 110, sortable: false, align: 'center', headerAlign: 'center',
       renderCell: ({ row }) => (
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', alignItems: 'center', py: 0.5 }}>
           {onDetail && (
             <Tooltip title="Manage Asset">
               <IconButton size="small" onClick={() => onDetail(row)}>

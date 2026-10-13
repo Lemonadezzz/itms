@@ -71,13 +71,15 @@ export function AssetFormDialog({ open, asset, onClose, onError, onUpdate }: Pro
               <TextField name="location" label="Location" size="small" required fullWidth
                 defaultValue={asset?.location ?? ''} />
             </Grid>
-            <Grid size={{ xs: 12 }}>
-              <FormControlLabel
-                control={<Checkbox name="isPendingDelivery" checked={isPendingCheckbox} onChange={(e) => setIsPendingCheckbox(e.target.checked)} />}
-                label="Item is Ordered (Not Yet Received)"
-              />
-            </Grid>
-            {!isPendingCheckbox && (
+            {!isEdit && (
+              <Grid size={{ xs: 12 }}>
+                <FormControlLabel
+                  control={<Checkbox name="isPendingDelivery" checked={isPendingCheckbox} onChange={(e) => setIsPendingCheckbox(e.target.checked)} />}
+                  label="Item is Ordered (Not Yet Received)"
+                />
+              </Grid>
+            )}
+            {(!isEdit || !isPendingCheckbox) && (
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
                   InputLabelProps={{ shrink: true }}
