@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/db/mongoose';
 import { Employee } from '@/models/Employee';
+import { Asset } from '@/models/Asset';
 
 export type EmployeeRow = {
   _id: string;
@@ -11,6 +12,7 @@ export type EmployeeRow = {
   hiredAt?: string;
   resignedAt?: string;
   isDeleted: boolean;
+  assignedAssetCount: number;
 };
 
 export async function getEmployees({
@@ -37,6 +39,28 @@ export async function getEmployees({
     Employee.countDocuments(query),
   ]);
 
+  // Fetch assigned asset counts for all returned employees in one query
+  const employeeIds = docs.map((d) => d._id);
+  const assetCounts = await Asset.aggregate([
+    {
+      $match: {
+        'currentAssignment.employeeId': { $in: employeeIds },
+        status: 'In Use',
+      },
+    },
+    {
+      $group: {
+        _id: '$currentAssignment.employeeId',
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const countMap = new Map<string, number>();
+  assetCounts.forEach((a) => {
+    countMap.set(a._id.toString(), a.count);
+  });
+
   return {
     rows: docs.map((e) => ({
       _id: e._id.toString(),
@@ -48,6 +72,7 @@ export async function getEmployees({
       hiredAt: (e.hiredAt || (e as any).hireDate)?.toISOString(),
       resignedAt: e.resignedAt?.toISOString(),
       isDeleted: e.isDeleted,
+      assignedAssetCount: countMap.get(e._id.toString()) ?? 0,
     })),
     total,
   };

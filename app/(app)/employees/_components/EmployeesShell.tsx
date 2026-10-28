@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip } from '@mui/material';
-import { Add, Search, EditNote, Delete, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
+import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Typography, Chip, List, ListItem, ListItemText } from '@mui/material';
+import { Add, Search, EditNote, Delete, PersonRemove, TransferWithinAStation, Computer } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
 import { deleteEmployee, offboardEmployee } from '@/actions/employeeActions';
@@ -29,6 +29,9 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
   const [offboardingEmployeeId, setOffboardingEmployeeId] = useState<string | null>(null);
   const [offboardingEmployeeName, setOffboardingEmployeeName] = useState<string>('');
   const [isOffboardAction, setIsOffboardAction] = useState(true);
+  const [viewingAssetsOpen, setViewingAssetsOpen] = useState(false);
+  const [viewingEmployee, setViewingEmployee] = useState<EmployeeRow | null>(null);
+  const [viewingAssets, setViewingAssets] = useState<Array<{ _id: string; assetCode: string; assetName: string; status: string }>>([]);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -49,6 +52,26 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
     { field: 'userType',     headerName: 'User Type',  width: 120 },
     { field: 'location',     headerName: 'Location',   width: 120 },
     { field: 'status',       headerName: 'Status',     width: 100 },
+    {
+      field: 'assignedAssetCount', headerName: 'Assets', width: 100,
+      renderCell: ({ value, row }) => {
+        const count = value as number;
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Chip
+              label={count}
+              color={count > 0 ? 'primary' : 'default'}
+              size="small"
+              sx={{ fontSize: '0.65rem', height: 20, cursor: 'pointer' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewingAssets(row);
+              }}
+            />
+          </Box>
+        );
+      },
+    },
     {
       field: 'actions', headerName: '', width: 140, sortable: false,
       renderCell: ({ row }) => (
