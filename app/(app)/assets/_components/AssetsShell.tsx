@@ -36,6 +36,13 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   const [confirmDeliveryTarget, setConfirmDeliveryTarget] = useState<AssetRow | null>(null);
   const [errorMsg, setErrorMsg]         = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AssetRow | null>(null);
+  const [localRows, setLocalRows]       = useState<AssetRow[]>(rows);
+
+  // Keep the optimistic copy in sync whenever the server sends fresh data.
+  useEffect(() => {
+    setLocalRows(rows);
+    setDetailTarget((prev) => (prev ? rows.find((r) => r._id === prev._id) ?? prev : prev));
+  }, [rows]);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -65,7 +72,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
         <AssetTable
-          rows={rows}
+          rows={localRows}
           rowCount={total}
           pagination={{ page, pageSize, sortField, sortDir: sortDir as 'asc' | 'desc' }}
           onPaginationChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
@@ -92,9 +99,8 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
         onClose={() => { setCreateOpen(false); setEditTarget(null); }}
         onError={setErrorMsg}
         onUpdate={(updatedAsset) => {
-          if (detailTarget) {
-            setDetailTarget(updatedAsset);
-          }
+          setLocalRows((prev) => prev.map((r) => (r._id === updatedAsset._id ? updatedAsset : r)));
+          setDetailTarget((prev) => (prev && prev._id === updatedAsset._id ? updatedAsset : prev));
         }}
       />
 

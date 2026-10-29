@@ -72,6 +72,9 @@ export function AssetTable({
       ),
     },
     { field: 'location',       headerName: 'Location',    width: 100 },
+    { field: 'costCenter',     headerName: 'Cost Center', width: 120,
+      renderCell: ({ value }) => value || '-',
+    },
     {
       field: 'acquisitionCost', headerName: 'Cost', width: 130,
       renderCell: ({ value }) => <span style={{ fontSize: '0.72rem' }}>{phpFormat(value as number)}</span>,

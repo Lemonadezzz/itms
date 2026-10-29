@@ -37,7 +37,7 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
   const columns: GridColDef<LogRow>[] = [
     {
       field: 'createdAt', headerName: 'Time', width: 150,
-      renderCell: ({ value }) => new Date(value).toLocaleString(),
+      renderCell: ({ value }) => new Date(value).toISOString(),
     },
     { field: 'userName',     headerName: 'User',        width: 140 },
     {

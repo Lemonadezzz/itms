@@ -17,6 +17,7 @@ export type AssetRow = {
   assetName: string;
   assetType: 'laptop' | 'desktop' | 'display';
   location: string;
+  costCenter?: string;
   acquisitionDate: string;
   acquisitionCost: number;
   ageInMonths: number;

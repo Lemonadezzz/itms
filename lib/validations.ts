@@ -5,7 +5,9 @@ export const CreateAssetSchema = z.object({
   assetCode:          z.string().min(1),
   location:           z.string().min(1),
   assetType:          z.enum(['laptop', 'desktop', 'display']),
+  costCenter:         z.string().optional(),
   acquisitionDate:    z.coerce.date().optional(),
+  issuedDate:         z.coerce.date().optional().or(z.literal('').transform(() => undefined)),
   isPendingDelivery:  z.string().optional(),
   acquisitionCost:    z.coerce.number().positive(),
   supplierId:         z.string().optional(),
@@ -21,10 +23,21 @@ export const AssignAssetSchema = z.object({
 
 export const CreateEmployeeSchema = z.object({
   employeeName: z.string().min(1),
+  email:        z.string().email(),
   department:   z.string().min(1),
   userType:     z.enum(['support', 'standard', 'standardplus', 'poweruser']),
-  location:     z.string().min(1),
+  status:       z.enum(['Active', 'Inactive']).optional(),
   hiredAt:     z.coerce.date().optional(),
+});
+
+export const CreateContractSchema = z.object({
+  employeeId:     z.string().min(1),
+  assetId:        z.string().min(1),
+  numberOfMonths: z.coerce.number().int().min(1),
+});
+
+export const UpdateContractSchema = z.object({
+  numberOfMonths: z.coerce.number().int().min(1),
 });
 
 export const CreateTicketSchema = z.object({

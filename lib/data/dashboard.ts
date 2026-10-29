@@ -1,6 +1,5 @@
 import { connectDB } from '@/lib/db/mongoose';
 import { Asset } from '@/models/Asset';
-import { Employee } from '@/models/Employee';
 
 export type DashboardStats = {
   totalAssets: number;
@@ -21,14 +20,10 @@ const LIFECYCLE = [
 export async function getDashboardStats(): Promise<DashboardStats> {
   await connectDB();
 
-  const [assets, totalCostAgg, employees] = await Promise.all([
-    Asset.find({}, { assetType: 1, acquisitionDate: 1, currentAssignment: 1, acquisitionCost: 1 }).lean(),
+  const [assets, totalCostAgg] = await Promise.all([
+    Asset.find({}, { assetType: 1, costCenter: 1, acquisitionDate: 1, currentAssignment: 1, acquisitionCost: 1 }).lean(),
     Asset.aggregate([{ $group: { _id: null, total: { $sum: '$acquisitionCost' } } }]),
-    Employee.find({}, { _id: 1, department: 1 }).lean(),
   ]);
-
-  const empDeptMap: Record<string, string> = {};
-  for (const e of employees) empDeptMap[e._id.toString()] = e.department;
 
   const now = Date.now();
   const lifecycleMap: Record<string, number> = { New: 0, 'Mid-life': 0, 'Near EOL': 0, EOL: 0 };
@@ -36,13 +31,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   let assignedCount = 0;
 
   for (const a of assets) {
-    if (a.currentAssignment) {
-      assignedCount++;
-      const dept = empDeptMap[a.currentAssignment.employeeId.toString()] ?? 'Unassigned';
-      deptCostMap[dept] = (deptCostMap[dept] ?? 0) + a.acquisitionCost;
-    } else {
-      deptCostMap['Unassigned'] = (deptCostMap['Unassigned'] ?? 0) + a.acquisitionCost;
-    }
+    if (a.currentAssignment) assignedCount++;
+
+    // Cost is attributed to the asset's cost center (the department it was
+    // originally purchased for), falling back to Unassigned when not set.
+    const costCenter = a.costCenter?.trim() || 'Unassigned';
+    deptCostMap[costCenter] = (deptCostMap[costCenter] ?? 0) + a.acquisitionCost;
 
     // Handle assets without acquisitionDate (use 0 months for new items)
     let months = 0;

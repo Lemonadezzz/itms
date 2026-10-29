@@ -6,10 +6,9 @@ import type { Types } from 'mongoose';
 export type AssetFilters = {
   search?: string;
   assetType?: string;
-  isAssigned?: string;
+  status?: string;
   location?: string;
   assignedToId?: string;
-  showDecommissioned?: string;
 };
 
 type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
@@ -52,13 +51,13 @@ export async function getAssets({
     ];
   }
   if (filters.assetType)  query.assetType = filters.assetType;
-  if (filters.isAssigned === 'true')  query.currentAssignment = { $exists: true, $ne: null };
-  if (filters.isAssigned === 'false') query.currentAssignment = { $exists: false };
+  if (filters.status)     query.status = filters.status;
   if (filters.location)   query.location = { $regex: filters.location, $options: 'i' };
   if (filters.assignedToId) query['currentAssignment.employeeId'] = filters.assignedToId;
-  if (filters.showDecommissioned === 'false') query.status = { $ne: 'Decommissioned' };
 
-  const sort: Record<string, 1 | -1> = { [sortField]: sortDir === 'asc' ? 1 : -1 };
+  // Decommissioned assets always sink to the bottom of the list, regardless of
+  // the active sort. They are the only records with isDeleted = true.
+  const sort: Record<string, 1 | -1> = { isDeleted: 1, [sortField]: sortDir === 'asc' ? 1 : -1 };
 
   const [docs, total] = await Promise.all([
     Asset.find(query)
@@ -84,6 +83,7 @@ export async function getAssets({
       assetName: a.assetName,
       assetType: a.assetType,
       location: a.location,
+      costCenter: a.costCenter,
       acquisitionDate: a.acquisitionDate ? new Date(a.acquisitionDate).toISOString() : '',
       acquisitionCost: a.acquisitionCost,
       ageInMonths,
@@ -128,6 +128,7 @@ export async function getAssetById(id: string): Promise<AssetRow | null> {
     assetName: doc.assetName,
     assetType: doc.assetType,
     location: doc.location,
+    costCenter: doc.costCenter,
     acquisitionDate: doc.acquisitionDate ? new Date(doc.acquisitionDate).toISOString() : '',
     acquisitionCost: doc.acquisitionCost,
     ageInMonths,

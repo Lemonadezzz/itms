@@ -19,10 +19,9 @@ export default async function AssetsPage({ searchParams }: Props) {
     getAssets({ page, pageSize, sortField, sortDir, filters: {
       search:       sp.search,
       assetType:    sp.assetType,
-      isAssigned:   sp.isAssigned,
+      status:       sp.status,
       location:     sp.location,
       assignedToId: sp.assignedToId,
-      showDecommissioned: sp.showDecommissioned,
     }}),
     getEmployeeOptions(),
   ]);

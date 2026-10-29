@@ -175,7 +175,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
           {rows.map((entry, i) => (
             <TableRow key={i}>
               <TableCell sx={{ fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
-                {new Date(entry.date).toLocaleDateString('en-CA')}
+                {new Date(entry.date).toISOString()}
               </TableCell>
               <TableCell>
                 <Chip
@@ -230,6 +230,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
                       size="small"
                       sx={{ bgcolor: TYPE_COLORS[asset.assetType] ?? '#888', color: '#fff', fontWeight: 700, fontSize: '0.75rem' }} />
                   } />
+                  <InfoRow label="Cost Center" value={asset.costCenter?.trim() || '-'} />
                   <InfoRow label="Location" value={asset.location} />
                   <InfoRow label="Acquisition Date" value={new Date(asset.acquisitionDate).toLocaleDateString('en-CA')} />
 

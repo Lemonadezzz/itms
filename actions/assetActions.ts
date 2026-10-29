@@ -52,7 +52,20 @@ export async function updateAsset(id: string, formData: unknown): Promise<Action
 
   await connectDB();
   try {
-    const asset = await Asset.findByIdAndUpdate(id, parsed.data, { new: true });
+    const { issuedDate, ...data } = parsed.data;
+
+    // The Issued Date lives on the current assignment (not the asset itself).
+    // Only update it when the asset is actually assigned, so we never create a
+    // partial assignment record.
+    const current = await Asset.findById(id).select('currentAssignment').lean();
+    if (!current) return { success: false, error: 'Asset not found' };
+
+    const update: Record<string, unknown> = { ...data };
+    if (issuedDate && current.currentAssignment) {
+      update['currentAssignment.assignedDate'] = issuedDate;
+    }
+
+    const asset = await Asset.findByIdAndUpdate(id, update, { new: true });
     if (!asset) return { success: false, error: 'Asset not found' };
     const { userId, userName } = await getActor();
     await writeLog({ userId, userName, action: 'update', description: `Updated asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: id });

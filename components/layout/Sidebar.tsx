@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import {
   Dashboard, Inventory, People, ConfirmationNumber,
-  Computer, Business, Calculate, History,
+  Computer, Business, Calculate, History, Description,
   ChevronLeft, Menu, LightMode, DarkMode, Logout, Settings,
 } from '@mui/icons-material';
 import { useColorMode } from '@/theme/ThemeProvider';
@@ -25,6 +25,7 @@ const navItems = [
   { text: 'Dashboard', href: '/dashboard', icon: <Dashboard fontSize="small" /> },
   { text: 'Hardware', href: '/assets', icon: <Inventory fontSize="small" /> },
   { text: 'Employees', href: '/employees', icon: <People fontSize="small" /> },
+  { text: 'Contracts', href: '/contracts', icon: <Description fontSize="small" /> },
   { text: 'Tickets', href: '/tickets', icon: <ConfirmationNumber fontSize="small" /> },
   { text: 'Software', href: '/software', icon: <Computer fontSize="small" /> },
   { text: 'Suppliers', href: '/suppliers', icon: <Business fontSize="small" /> },

@@ -23,7 +23,13 @@ export async function createEmployee(formData: unknown): Promise<ActionResult<st
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
   await connectDB();
-  const emp = await Employee.create(parsed.data);
+  let emp;
+  try {
+    emp = await Employee.create(parsed.data);
+  } catch (err: any) {
+    if (err?.code === 11000) return { success: false, error: 'An employee with this email already exists.' };
+    throw err;
+  }
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'create', description: `Created employee ${emp.employeeName}`, relatedModel: 'Employee', relatedId: emp._id.toString() });
   revalidatePath('/employees');
@@ -35,7 +41,13 @@ export async function updateEmployee(id: string, formData: unknown): Promise<Act
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
   await connectDB();
-  const emp = await Employee.findByIdAndUpdate(id, parsed.data, { new: true });
+  let emp;
+  try {
+    emp = await Employee.findByIdAndUpdate(id, parsed.data, { new: true });
+  } catch (err: any) {
+    if (err?.code === 11000) return { success: false, error: 'An employee with this email already exists.' };
+    throw err;
+  }
   if (!emp) return { success: false, error: 'Employee not found' };
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'update', description: `Updated employee ${emp.employeeName}`, relatedModel: 'Employee', relatedId: id });
@@ -52,16 +64,16 @@ export async function deleteEmployee(id: string): Promise<ActionResult> {
   return { success: true, data: undefined };
 }
 
-export async function checkEmployeeAssets(employeeId: string): Promise<ActionResult<{ assetCount: number; assets: Array<{ _id: string; assetCode: string; assetName: string; }> }>> {
+export async function checkEmployeeAssets(employeeId: string): Promise<ActionResult<{ assetCount: number; assets: Array<{ _id: string; assetCode: string; assetName: string; status: string }> }>> {
   await connectDB();
   const assets = await Asset.find(
     {
       'currentAssignment.employeeId': employeeId,
       status: 'In Use',
     },
-    { _id: 1, assetCode: 1, assetName: 1 }
+    { _id: 1, assetCode: 1, assetName: 1, status: 1 }
   ).lean();
-  return { success: true, data: { assetCount: assets.length, assets: assets.map((a) => ({ _id: a._id.toString(), assetCode: a.assetCode, assetName: a.assetName })) } };
+  return { success: true, data: { assetCount: assets.length, assets: assets.map((a) => ({ _id: a._id.toString(), assetCode: a.assetCode, assetName: a.assetName, status: a.status })) } };
 }
 
 export async function offboardEmployee(employeeId: string, autoReturn?: boolean): Promise<ActionResult> {

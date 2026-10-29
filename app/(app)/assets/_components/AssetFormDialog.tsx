@@ -35,6 +35,13 @@ export function AssetFormDialog({ open, asset, onClose, onError, onUpdate }: Pro
           assetCode: data.assetCode as string,
           assetType: data.assetType as 'laptop' | 'desktop' | 'display',
           location: data.location as string,
+          costCenter: (data.costCenter as string) || '',
+          acquisitionDate: data.acquisitionDate
+            ? new Date(data.acquisitionDate as string).toISOString()
+            : asset!.acquisitionDate,
+          assignedDate: data.issuedDate
+            ? new Date(data.issuedDate as string).toISOString()
+            : asset!.assignedDate,
           acquisitionCost: Number(data.acquisitionCost),
           depreciationMethod: data.depreciationMethod as string,
         });
@@ -51,6 +58,22 @@ export function AssetFormDialog({ open, asset, onClose, onError, onUpdate }: Pro
       <form onSubmit={handleSubmit}>
         <DialogContent suppressHydrationWarning>
           <Grid container spacing={2}>
+            {!isEdit && (
+              <Grid size={{ xs: 12 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="isPendingDelivery"
+                      checked={isPendingCheckbox}
+                      onChange={(e) => setIsPendingCheckbox(e.target.checked)}
+                      sx={{ color: 'info.main', '&.Mui-checked': { color: 'info.main' } }}
+                    />
+                  }
+                  label="Item is Ordered (Not Yet Received)"
+                  sx={{ '& .MuiFormControlLabel-label': { color: 'info.main', fontWeight: 600 } }}
+                />
+              </Grid>
+            )}
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="assetName" label="Asset Name" size="small" required fullWidth
                 defaultValue={asset?.assetName ?? ''} />
@@ -68,22 +91,24 @@ export function AssetFormDialog({ open, asset, onClose, onError, onUpdate }: Pro
               </TextField>
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="costCenter" label="Cost Center" size="small" fullWidth
+                defaultValue={asset?.costCenter ?? ''} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="location" label="Location" size="small" required fullWidth
                 defaultValue={asset?.location ?? ''} />
             </Grid>
-            {!isEdit && (
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={<Checkbox name="isPendingDelivery" checked={isPendingCheckbox} onChange={(e) => setIsPendingCheckbox(e.target.checked)} />}
-                  label="Item is Ordered (Not Yet Received)"
-                />
-              </Grid>
-            )}
-            {(!isEdit || !isPendingCheckbox) && (
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
+                disabled={!isEdit && isPendingCheckbox}
+                InputLabelProps={{ shrink: true }}
+                defaultValue={asset?.acquisitionDate ? asset.acquisitionDate.split('T')[0] : ''} />
+            </Grid>
+            {isEdit && asset?.isAssigned && (
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
+                <TextField name="issuedDate" label="Issued Date" type="date" size="small" fullWidth
                   InputLabelProps={{ shrink: true }}
-                  defaultValue={asset?.acquisitionDate ? asset.acquisitionDate.split('T')[0] : ''} />
+                  defaultValue={asset?.assignedDate ? asset.assignedDate.split('T')[0] : ''} />
               </Grid>
             )}
             <Grid size={{ xs: 12, sm: 6 }}>

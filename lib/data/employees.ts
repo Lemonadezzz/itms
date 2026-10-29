@@ -5,9 +5,9 @@ import { Asset } from '@/models/Asset';
 export type EmployeeRow = {
   _id: string;
   employeeName: string;
+  email: string;
   department: string;
   userType: string;
-  location: string;
   status: string;
   hiredAt?: string;
   resignedAt?: string;
@@ -30,6 +30,7 @@ export async function getEmployees({
   const query: Record<string, any> = search
     ? { $or: [
         { employeeName: { $regex: search, $options: 'i' } },
+        { email:        { $regex: search, $options: 'i' } },
         { department:   { $regex: search, $options: 'i' } },
       ]}
     : {};
@@ -65,9 +66,9 @@ export async function getEmployees({
     rows: docs.map((e) => ({
       _id: e._id.toString(),
       employeeName: e.employeeName,
+      email: e.email ?? '',
       department: e.department,
       userType: e.userType,
-      location: e.location,
       status: e.status,
       hiredAt: (e.hiredAt || (e as any).hireDate)?.toISOString(),
       resignedAt: e.resignedAt?.toISOString(),

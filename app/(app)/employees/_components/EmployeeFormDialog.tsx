@@ -12,9 +12,10 @@ interface Props {
   open: boolean;
   employee: EmployeeRow | null;
   onClose: () => void;
+  onUpdate?: (updated: EmployeeRow) => void;
 }
 
-export function EmployeeFormDialog({ open, employee, onClose }: Props) {
+export function EmployeeFormDialog({ open, employee, onClose, onUpdate }: Props) {
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const isEdit = !!employee;
@@ -29,8 +30,8 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
       setStatus(employee.status || 'Active');
       setFormData({
         employeeName: employee.employeeName || '',
+        email: employee.email || '',
         department: employee.department || '',
-        location: employee.location || '',
         hiredAt: employee.hiredAt ? employee.hiredAt.split('T')[0] : '',
       });
     } else {
@@ -51,6 +52,19 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
         ? await updateEmployee(employee._id, data)
         : await createEmployee(data);
       if (!res.success) return setError(res.error);
+      if (isEdit && onUpdate) {
+        onUpdate({
+          ...employee,
+          employeeName: data.employeeName as string,
+          email: data.email as string,
+          department: data.department as string,
+          userType: userType as string,
+          status: status as string,
+          hiredAt: data.hiredAt
+            ? new Date(data.hiredAt as string).toISOString()
+            : employee.hiredAt,
+        });
+      }
       onClose();
     });
   }
@@ -69,6 +83,10 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
                 value={formData.employeeName || ''} onChange={(e) => setFormData({...formData, employeeName: e.target.value})} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="email" label="Email" type="email" size="small" required fullWidth
+                value={formData.email || ''} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="department" label="Department" size="small" required fullWidth
                 value={formData.department || ''} onChange={(e) => setFormData({...formData, department: e.target.value})} />
             </Grid>
@@ -80,10 +98,6 @@ export function EmployeeFormDialog({ open, employee, onClose }: Props) {
                 <MenuItem value="standardplus">Standard+</MenuItem>
                 <MenuItem value="poweruser">Power User</MenuItem>
               </TextField>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="location" label="Location" size="small" required fullWidth
-                value={formData.location || ''} onChange={(e) => setFormData({...formData, location: e.target.value})} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="hiredAt" label="Hire Date" type="date" size="small" fullWidth

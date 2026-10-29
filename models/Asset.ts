@@ -27,6 +27,7 @@ export interface IAsset extends Document {
   location: string;
   assetType: AssetType;
   status?: AssetStatus;
+  costCenter?: string;
   acquisitionDate?: Date;
   acquisitionCost: number;
   supplierId?: Types.ObjectId;
@@ -63,6 +64,7 @@ const AssetSchema = new Schema<IAsset>(
     location: { type: String, required: true },
     assetType: { type: String, enum: ASSET_TYPES, required: true },
     status: { type: String, enum: ASSET_STATUSES },
+    costCenter: { type: String, trim: true },
     acquisitionDate: Date,
     acquisitionCost: { type: Number, required: true, min: 0 },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },

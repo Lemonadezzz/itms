@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, TextField, MenuItem, InputAdornment, Autocomplete, FormControlLabel, Checkbox } from '@mui/material';
+import { Box, TextField, MenuItem, InputAdornment, Autocomplete } from '@mui/material';
 import { Search } from '@mui/icons-material';
 
 interface Employee { _id: string; employeeName: string; }
@@ -14,12 +14,11 @@ interface Props {
 export function AssetFiltersBar({ employees, onFilter }: Props) {
   const [search,     setSearch]     = useState('');
   const [assetType,  setType]       = useState('');
-  const [isAssigned, setStatus]     = useState('');
+  const [status,     setStatus]     = useState('');
   const [assignedTo, setAssignedTo] = useState<Employee | null>(null);
-  const [showDecommissioned, setShowDecommissioned] = useState(false);
 
-  function emit(overrides: Record<string, string | boolean>) {
-    onFilter({ search, assetType, isAssigned, assignedToId: assignedTo?._id ?? '', showDecommissioned: String(showDecommissioned), ...overrides });
+  function emit(overrides: Record<string, string>) {
+    onFilter({ search, assetType, status, assignedToId: assignedTo?._id ?? '', ...overrides });
   }
 
   return (
@@ -43,13 +42,15 @@ export function AssetFiltersBar({ employees, onFilter }: Props) {
       </TextField>
 
       <TextField
-        select size="small" label="Status" value={isAssigned}
-        onChange={(e) => { setStatus(e.target.value); emit({ isAssigned: e.target.value }); }}
-        sx={{ width: 120 }}
+        select size="small" label="Status" value={status}
+        onChange={(e) => { setStatus(e.target.value); emit({ status: e.target.value }); }}
+        sx={{ width: 150 }}
       >
         <MenuItem value="">All</MenuItem>
-        <MenuItem value="true">Assigned</MenuItem>
-        <MenuItem value="false">Available</MenuItem>
+        <MenuItem value="Ordered">Ordered</MenuItem>
+        <MenuItem value="In Stock">In Stock</MenuItem>
+        <MenuItem value="In Use">In Use</MenuItem>
+        <MenuItem value="Decommissioned">Decommissioned</MenuItem>
       </TextField>
 
       <Autocomplete
@@ -67,17 +68,6 @@ export function AssetFiltersBar({ employees, onFilter }: Props) {
         )}
         sx={{ width: 200 }}
         clearOnEscape
-      />
-
-      <FormControlLabel
-        control={
-          <Checkbox size="small" checked={showDecommissioned} onChange={(e) => {
-            setShowDecommissioned(e.target.checked);
-            emit({ showDecommissioned: String(e.target.checked) });
-          }} />
-        }
-        label="Show Decommissioned"
-        sx={{ fontSize: '0.75rem' }}
       />
     </Box>
   );

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Typography, Chip, List, ListItem, ListItemText } from '@mui/material';
-import { Add, Search, EditNote, Delete, PersonRemove, TransferWithinAStation, Computer } from '@mui/icons-material';
+import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Chip } from '@mui/material';
+import { Add, Search, EditNote, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
+import { EmployeeDetailDialog } from './EmployeeDetailDialog';
 import { deleteEmployee, offboardEmployee } from '@/actions/employeeActions';
 import { OffboardEmployeeModal } from './OffboardEmployeeModal';
 import { reactivateEmployee } from '@/actions/employeeActions';
@@ -25,13 +26,18 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EmployeeRow | null>(null);
+  const [detailTarget, setDetailTarget] = useState<EmployeeRow | null>(null);
+  const [localRows, setLocalRows] = useState<EmployeeRow[]>(rows);
   const [offboardOpen, setOffboardOpen] = useState(false);
   const [offboardingEmployeeId, setOffboardingEmployeeId] = useState<string | null>(null);
   const [offboardingEmployeeName, setOffboardingEmployeeName] = useState<string>('');
   const [isOffboardAction, setIsOffboardAction] = useState(true);
-  const [viewingAssetsOpen, setViewingAssetsOpen] = useState(false);
-  const [viewingEmployee, setViewingEmployee] = useState<EmployeeRow | null>(null);
-  const [viewingAssets, setViewingAssets] = useState<Array<{ _id: string; assetCode: string; assetName: string; status: string }>>([]);
+
+  // Keep the optimistic copy in sync whenever the server sends fresh data.
+  useEffect(() => {
+    setLocalRows(rows);
+    setDetailTarget((prev) => (prev ? rows.find((r) => r._id === prev._id) ?? prev : prev));
+  }, [rows]);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -48,25 +54,23 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
 
   const columns: GridColDef<EmployeeRow>[] = [
     { field: 'employeeName', headerName: 'Name',       flex: 1, minWidth: 160 },
+    { field: 'email',        headerName: 'Email',      width: 240,
+      renderCell: ({ value }) => value || '-',
+    },
     { field: 'department',   headerName: 'Department', width: 150 },
     { field: 'userType',     headerName: 'User Type',  width: 120 },
-    { field: 'location',     headerName: 'Location',   width: 120 },
     { field: 'status',       headerName: 'Status',     width: 100 },
     {
       field: 'assignedAssetCount', headerName: 'Assets', width: 100,
-      renderCell: ({ value, row }) => {
+      renderCell: ({ value }) => {
         const count = value as number;
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <Chip
               label={count}
               color={count > 0 ? 'primary' : 'default'}
               size="small"
-              sx={{ fontSize: '0.65rem', height: 20, cursor: 'pointer' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setViewingAssets(row);
-              }}
+              sx={{ fontSize: '0.65rem', height: 20 }}
             />
           </Box>
         );
@@ -76,8 +80,8 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
       field: 'actions', headerName: '', width: 140, sortable: false,
       renderCell: ({ row }) => (
         <Box>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => { setEditing(row); setDialogOpen(true); }}>
+          <Tooltip title="Manage Employee">
+            <IconButton size="small" onClick={() => setDetailTarget(row)}>
               <EditNote sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
@@ -118,7 +122,7 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
         <DataGrid
-          rows={rows} columns={columns} getRowId={(r) => r._id}
+          rows={localRows} columns={columns} getRowId={(r) => r._id}
           rowCount={total} paginationMode="server"
           pageSizeOptions={[50, 75, 100]}
           paginationModel={{ page, pageSize }}
@@ -128,9 +132,21 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
         />
       </Box>
 
+      {detailTarget && (
+        <EmployeeDetailDialog
+          employee={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onEdit={() => { setEditing(detailTarget); setDialogOpen(true); }}
+        />
+      )}
+
       <EmployeeFormDialog
         open={dialogOpen} employee={editing}
         onClose={() => { setDialogOpen(false); setEditing(null); }}
+        onUpdate={(updated) => {
+          setLocalRows((prev) => prev.map((r) => (r._id === updated._id ? { ...r, ...updated } : r)));
+          setDetailTarget((prev) => (prev && prev._id === updated._id ? { ...prev, ...updated } : prev));
+        }}
       />
 
       <OffboardEmployeeModal
