@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Chip } from '@mui/material';
-import { Add, Search, EditNote, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
+import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Chip, Snackbar, Alert } from '@mui/material';
+import { Add, Delete, Search, EditNote, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
 import { EmployeeDetailDialog } from './EmployeeDetailDialog';
 import { deleteEmployee, offboardEmployee } from '@/actions/employeeActions';
 import { OffboardEmployeeModal } from './OffboardEmployeeModal';
 import { reactivateEmployee } from '@/actions/employeeActions';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { EMPLOYEE_CONTRACT_BADGE_COLORS } from '@/lib/employeeBadges';
+import type { EmployeeContractBadge } from '@/lib/employeeBadges';
 import type { EmployeeRow } from '@/lib/data/employees';
 
 interface Props {
@@ -32,6 +35,14 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
   const [offboardingEmployeeId, setOffboardingEmployeeId] = useState<string | null>(null);
   const [offboardingEmployeeName, setOffboardingEmployeeName] = useState<string>('');
   const [isOffboardAction, setIsOffboardAction] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<EmployeeRow | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!errorMsg) return;
+    const timer = setTimeout(() => setErrorMsg(null), 4000);
+    return () => clearTimeout(timer);
+  }, [errorMsg]);
 
   // Keep the optimistic copy in sync whenever the server sends fresh data.
   useEffect(() => {
@@ -58,10 +69,10 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
       renderCell: ({ value }) => value || '-',
     },
     { field: 'department',   headerName: 'Department', width: 150 },
-    { field: 'userType',     headerName: 'User Type',  width: 120 },
+    { field: 'companyTenure', headerName: 'Company Tenure', width: 150 },
     { field: 'status',       headerName: 'Status',     width: 100 },
     {
-      field: 'assignedAssetCount', headerName: 'Assets', width: 100,
+      field: 'assignedAssetCount', headerName: 'Assigned Devices', width: 150,
       renderCell: ({ value }) => {
         const count = value as number;
         return (
@@ -77,7 +88,20 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
       },
     },
     {
-      field: 'actions', headerName: '', width: 140, sortable: false,
+      field: 'contractBadge', headerName: 'Contracts', width: 120,
+      renderCell: ({ value }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Chip
+            label={value as string}
+            size="small"
+            color={EMPLOYEE_CONTRACT_BADGE_COLORS[value as EmployeeContractBadge]}
+            sx={{ fontSize: '0.65rem', height: 20 }}
+          />
+        </Box>
+      ),
+    },
+    {
+      field: 'actions', headerName: '', width: 170, sortable: false,
       renderCell: ({ row }) => (
         <Box>
           <Tooltip title="Manage Employee">
@@ -86,11 +110,17 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
             </IconButton>
           </Tooltip>
           {row.status === 'Active' ? (
-            <Tooltip title="Inactivate">
-              <IconButton size="small" color="error"
-                onClick={() => handleAction(row, true)}>
-                <PersonRemove sx={{ fontSize: 15 }} />
-              </IconButton>
+            <Tooltip title={row.contractBadge === 'Active' ? 'Employee has an active contract' : 'Inactivate'}>
+              <span>
+                <IconButton
+                  size="small"
+                  color="error"
+                  disabled={row.contractBadge === 'Active'}
+                  onClick={() => handleAction(row, true)}
+                >
+                  <PersonRemove sx={{ fontSize: 15 }} />
+                </IconButton>
+              </span>
             </Tooltip>
           ) : (
             <Tooltip title="Reactivate">
@@ -99,6 +129,11 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
               </IconButton>
             </Tooltip>
           )}
+          <Tooltip title="Delete Employee">
+            <IconButton size="small" color="error" onClick={() => setDeleteTarget(row)}>
+              <Delete sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
       ),
     },
@@ -157,6 +192,38 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
         isOffboard={isOffboardAction}
         onClose={() => { setOffboardOpen(false); setOffboardingEmployeeId(null); setOffboardingEmployeeName(''); setIsOffboardAction(true); }}
       />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={`Delete ${deleteTarget?.employeeName ?? 'employee'}?`}
+        message="This permanently deletes the employee. Delete their contract first, then their assigned assets."
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          if (!deleteTarget) return false;
+          const res = await deleteEmployee(deleteTarget._id);
+          if (!res.success) {
+            setErrorMsg(res.error);
+            return false;
+          }
+          setLocalRows((prev) => prev.filter((r) => r._id !== deleteTarget._id));
+          setDetailTarget((prev) => (prev && prev._id === deleteTarget._id ? null : prev));
+          setDeleteTarget(null);
+          router.refresh();
+          return true;
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <Snackbar
+        open={!!errorMsg}
+        autoHideDuration={4000}
+        onClose={() => setErrorMsg(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" sx={{ width: '100%' }}>
+          {errorMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

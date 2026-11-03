@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Button, Chip, IconButton, InputAdornment, Stack, TextField, Tooltip } from '@mui/material';
-import { Add, EditNote, Search } from '@mui/icons-material';
+import { Box, Button, Chip, IconButton, InputAdornment, Snackbar, Alert, Stack, TextField, Tooltip } from '@mui/material';
+import { Add, Delete, EditNote, Search } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { AddContractDialog } from './AddContractDialog';
 import { ContractDetailDialog } from './ContractDetailDialog';
 import { ContractFormDialog } from './ContractFormDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { deleteContract } from '@/actions/contractActions';
 import type { ContractRow, EligibleContractOption } from '@/lib/data/contracts';
 
 interface Props {
@@ -34,6 +36,14 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
   const [initial, setInitial] = useState<EligibleContractOption | null>(null);
   const [detailTarget, setDetailTarget] = useState<ContractRow | null>(null);
   const [localRows, setLocalRows] = useState<ContractRow[]>(rows);
+  const [deleteTarget, setDeleteTarget] = useState<ContractRow | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!errorMsg) return;
+    const timer = setTimeout(() => setErrorMsg(null), 4000);
+    return () => clearTimeout(timer);
+  }, [errorMsg]);
 
   // Keep the optimistic copy in sync whenever the server sends fresh data.
   useEffect(() => {
@@ -67,27 +77,39 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
       field: 'finishDate', headerName: 'Payment End', width: 130,
       renderCell: ({ value }) => formatDate(value as string),
     },
+    { field: 'tenure', headerName: 'Tenure', width: 130 },
     {
-      field: 'status', headerName: 'Payroll Deductions', width: 160,
+      field: 'contractEnd', headerName: 'Contract End', width: 130,
+      renderCell: ({ value }) => formatDate(value as string),
+    },
+    {
+      field: 'contractStatus', headerName: 'Contract Status', width: 140,
       renderCell: ({ value }) => (
         <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           <Chip
             label={value as string}
             size="small"
-            color={value === 'Fully Paid' ? 'success' : 'warning'}
+            color={value === 'Active' ? 'success' : 'default'}
             sx={{ fontSize: '0.68rem', height: 20 }}
           />
         </Box>
       ),
     },
     {
-      field: 'actions', headerName: '', width: 80, sortable: false,
+      field: 'actions', headerName: '', width: 110, sortable: false,
       renderCell: ({ row }) => (
-        <Tooltip title="Manage Contract">
-          <IconButton size="small" onClick={() => setDetailTarget(row)}>
-            <EditNote sx={{ fontSize: 15 }} />
-          </IconButton>
-        </Tooltip>
+        <Box>
+          <Tooltip title="Manage Contract">
+            <IconButton size="small" onClick={() => setDetailTarget(row)}>
+              <EditNote sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete Contract">
+            <IconButton size="small" color="error" onClick={() => setDeleteTarget(row)}>
+              <Delete sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       ),
     },
   ];
@@ -135,6 +157,10 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
           contract={detailTarget}
           onClose={() => setDetailTarget(null)}
           onEdit={() => { setEditing(detailTarget); setInitial(null); setFormOpen(true); }}
+          onUpdated={(updated) => {
+            setLocalRows((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+            setDetailTarget(updated);
+          }}
         />
       )}
 
@@ -151,6 +177,38 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title={`Delete contract for ${deleteTarget?.employeeName ?? ''}?`}
+        message={`This permanently deletes the contract for ${deleteTarget?.assetCode ?? ''} - ${deleteTarget?.assetName ?? ''}. Contracts must be deleted before their asset or employee.`}
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          if (!deleteTarget) return false;
+          const res = await deleteContract(deleteTarget._id);
+          if (!res.success) {
+            setErrorMsg(res.error);
+            return false;
+          }
+          setLocalRows((prev) => prev.filter((r) => r._id !== deleteTarget._id));
+          setDetailTarget((prev) => (prev && prev._id === deleteTarget._id ? null : prev));
+          setDeleteTarget(null);
+          router.refresh();
+          return true;
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <Snackbar
+        open={!!errorMsg}
+        autoHideDuration={4000}
+        onClose={() => setErrorMsg(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" sx={{ width: '100%' }}>
+          {errorMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

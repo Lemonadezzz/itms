@@ -1,5 +1,7 @@
 import { connectDB } from '@/lib/db/mongoose';
 import { Asset, IAsset } from '@/models/Asset';
+import { Contract } from '@/models/Contract';
+import { getContractLifecycleStatus } from '@/lib/contracts';
 import type { AssetRow, AssetAssignmentHistory } from '@/types';
 import type { Types } from 'mongoose';
 
@@ -25,6 +27,28 @@ type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
     notes?: string;
   }[];
 };
+
+/** Asset ids whose laptop is currently covered by an active contract. */
+async function getActiveContractAssetIds(assetIds: Types.ObjectId[]): Promise<Set<string>> {
+  if (assetIds.length === 0) return new Set();
+
+  const contracts = await Contract.find({
+    assetId: { $in: assetIds },
+    isDeleted: { $ne: true },
+  })
+    .select('assetId issuedDate endedAt')
+    .lean();
+
+  const now = new Date();
+  const ids = new Set<string>();
+  for (const c of contracts) {
+    if (c.endedAt || !c.assetId) continue;
+    if (getContractLifecycleStatus(c.issuedDate, now) === 'Active') {
+      ids.add(c.assetId.toString());
+    }
+  }
+  return ids;
+}
 
 export async function getAssets({
   page = 0,
@@ -71,6 +95,7 @@ export async function getAssets({
 
   // Calculate age based on current date (not fixed reference)
   const now = Date.now();
+  const activeContractIds = await getActiveContractAssetIds(docs.map((d) => d._id));
 
   const rows: AssetRow[] = docs.map((a) => {
     const ageInMonths = a.acquisitionDate ? Math.floor(
@@ -92,6 +117,7 @@ export async function getAssets({
       isAssigned: !!a.currentAssignment,
       status: a.status,
       depreciationMethod: a.depreciationMethod,
+      hasActiveContract: activeContractIds.has(a._id.toString()),
       assignmentHistory: (a.assignmentHistory ?? []).map((h): AssetAssignmentHistory => ({
         employeeName: h.employeeName,
         assignedAt: new Date(h.assignedAt || (h as any).assignedDate).toISOString(),
@@ -121,6 +147,7 @@ export async function getAssetById(id: string): Promise<AssetRow | null> {
     (now - new Date(doc.acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
   ) : 0;
   const emp = doc.currentAssignment?.employeeId as { employeeName?: string } | null | undefined;
+  const activeContractIds = await getActiveContractAssetIds([doc._id]);
 
   return {
     _id: doc._id.toString(),
@@ -137,6 +164,7 @@ export async function getAssetById(id: string): Promise<AssetRow | null> {
     isAssigned: !!doc.currentAssignment,
     status: doc.status,
     depreciationMethod: doc.depreciationMethod,
+    hasActiveContract: activeContractIds.has(doc._id.toString()),
     assignmentHistory: (doc.assignmentHistory ?? []).map((h): AssetAssignmentHistory => ({
       employeeName: h.employeeName,
       assignedAt: new Date(h.assignedAt || (h as any).assignedDate).toISOString(),

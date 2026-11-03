@@ -5,8 +5,11 @@ import { auth } from '@/lib/auth';
 import { connectDB } from '@/lib/db/mongoose';
 import { Asset } from '@/models/Asset';
 import { Employee } from '@/models/Employee';
+import { Contract } from '@/models/Contract';
+import { ActivityLog } from '@/models/ActivityLog';
 import { CreateAssetSchema, AssignAssetSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
+import { getContractLifecycleStatus } from '@/lib/contracts';
 import { Types } from 'mongoose';
 import type { ActionResult } from '@/types';
 
@@ -143,13 +146,63 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
 
 export async function deleteAsset(id: string): Promise<ActionResult> {
   await connectDB();
-  const asset = await Asset.findByIdAndDelete(id);
+  const asset = await Asset.findById(id);
   if (!asset) return { success: false, error: 'Asset not found' };
+
+  // Contracts must be deleted before the device they belong to.
+  const contract = await Contract.findOne({
+    assetId: id,
+    isDeleted: { $ne: true },
+  })
+    .select('_id')
+    .lean();
+  if (contract) {
+    return {
+      success: false,
+      error: 'Cannot delete this asset: delete its contract first.',
+    };
+  }
+
+  await Asset.findByIdAndDelete(id);
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'delete', description: `Deleted asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: id });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }
+export async function clearAssetLog(assetId: string): Promise<ActionResult<{ deleted: number }>> {
+  await connectDB();
+
+  const asset = await Asset.findById(assetId).select('assetCode status').lean();
+  if (!asset) return { success: false, error: 'Asset not found' };
+  if (asset.status !== 'In Stock') {
+    return {
+      success: false,
+      error: 'Asset log can only be cleared while the asset is In Stock.',
+    };
+  }
+
+  // Keep the creation entries; clear everything else recorded against the asset.
+  const result = await ActivityLog.deleteMany({
+    relatedModel: 'Asset',
+    relatedId: assetId,
+    action: { $nin: ['create', 'PRE_DELIVERY_INTAKE'] },
+  });
+
+  const { userId, userName } = await getActor();
+  await writeLog({
+    userId,
+    userName,
+    action: 'delete',
+    description: `Cleared asset log for ${asset.assetCode}`,
+    relatedModel: 'Asset',
+    relatedId: assetId,
+    assetCode: asset.assetCode,
+  });
+
+  revalidatePath('/assets');
+  return { success: true, data: { deleted: result.deletedCount ?? 0 } };
+}
+
 export async function confirmDelivery(assetId: string, acquisitionDate: string): Promise<ActionResult> {
   await connectDB();
   const asset = await Asset.findById(assetId);
@@ -216,11 +269,32 @@ export async function decommissionAsset(assetId: string, reason: string): Promis
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
 
+  // A device covered by an active contract cannot be decommissioned on its own.
+  const contracts = await Contract.find({
+    assetId,
+    isDeleted: { $ne: true },
+  })
+    .select('issuedDate endedAt')
+    .lean();
+  const now = new Date();
+  const hasActiveContract = contracts.some(
+    (c) => !c.endedAt && getContractLifecycleStatus(c.issuedDate, now) === 'Active'
+  );
+  if (hasActiveContract) {
+    return {
+      success: false,
+      error: 'This device is on an active contract and cannot be decommissioned.',
+    };
+  }
+
   // close current assignment if any
   if (asset.currentAssignment) {
+    const employee = await Employee.findById(asset.currentAssignment.employeeId)
+      .select('employeeName')
+      .lean();
     asset.assignmentHistory.push({
       employeeId: asset.currentAssignment.employeeId,
-      employeeName: '',
+      employeeName: employee?.employeeName ?? 'Unknown Employee',
       assignedAt: asset.currentAssignment.assignedDate,
       returnedAt: new Date(),
       notes: asset.currentAssignment.notes,

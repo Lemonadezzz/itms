@@ -7,8 +7,13 @@ import { Contract } from '@/models/Contract';
 import { Asset } from '@/models/Asset';
 import { Employee } from '@/models/Employee';
 import { CreateContractSchema, UpdateContractSchema } from '@/lib/validations';
-import { computePerCutoff, computeTotalContribution } from '@/lib/contracts';
+import {
+  computePerCutoff,
+  computeTotalContribution,
+  getContractLifecycleStatus,
+} from '@/lib/contracts';
 import { writeLog } from '@/lib/activityLog';
+import { decommissionAsset, returnAsset } from '@/actions/assetActions';
 import { getEligibleLaptopEmployees } from '@/lib/data/contracts';
 import type { EligibleContractOption } from '@/lib/data/contracts';
 import type { ActionResult } from '@/types';
@@ -120,8 +125,100 @@ export async function updateContract(id: string, formData: unknown): Promise<Act
   return { success: true, data: undefined };
 }
 
+export async function deleteContract(id: string): Promise<ActionResult> {
+  await connectDB();
+
+  const contract = await Contract.findById(id);
+  if (!contract || contract.isDeleted) {
+    return { success: false, error: 'Contract not found.' };
+  }
+
+  contract.isDeleted = true;
+  await contract.save();
+
+  const { userId, userName } = await getActor();
+  await writeLog({
+    userId,
+    userName,
+    action: 'delete',
+    description: `Deleted contract for ${contract.employeeName} — ${contract.assetName} (${contract.assetCode})`,
+    relatedModel: 'Contract',
+    relatedId: id,
+  });
+
+  revalidatePath('/contracts');
+  revalidatePath('/employees');
+  revalidatePath('/assets');
+  return { success: true, data: undefined };
+}
+
+export type ContractEndDisposition = 'decommission' | 'return';
+
+export async function endContract(
+  id: string,
+  reason: string,
+  disposition: ContractEndDisposition = 'decommission'
+): Promise<ActionResult<{ endedAt: string }>> {
+  const trimmed = reason?.trim() ?? '';
+  if (!trimmed) {
+    return { success: false, error: 'Please provide a reason for ending the contract.' };
+  }
+  if (trimmed.length > 500) {
+    return { success: false, error: 'Reason is too long (max 500 characters).' };
+  }
+  if (disposition !== 'decommission' && disposition !== 'return') {
+    return { success: false, error: 'Please choose what happens to the device.' };
+  }
+
+  await connectDB();
+
+  const existing = await Contract.findById(id).lean();
+  if (!existing) return { success: false, error: 'Contract not found.' };
+  if (existing.isDeleted) return { success: false, error: 'Contract not found.' };
+  if (
+    existing.endedAt ||
+    getContractLifecycleStatus(existing.issuedDate) === 'Ended'
+  ) {
+    return { success: false, error: 'This contract has already ended.' };
+  }
+
+  const endedAt = new Date();
+  await Contract.findByIdAndUpdate(id, { endedAt, endReason: trimmed });
+
+  // Ending a contract also retires the device, using the same reason.
+  // The device can either be returned to stock or decommissioned.
+  if (existing.assetId) {
+    try {
+      const assetResult =
+        disposition === 'return'
+          ? await returnAsset(existing.assetId.toString())
+          : await decommissionAsset(existing.assetId.toString(), trimmed);
+      if (!assetResult.success) {
+        console.error('Failed to update asset for ended contract:', assetResult.error);
+      }
+    } catch (err) {
+      console.error('Failed to update asset for ended contract:', err);
+    }
+  }
+
+  const { userId, userName } = await getActor();
+  await writeLog({
+    userId,
+    userName,
+    action: 'endContract',
+    description: `Ended contract for ${existing.employeeName} — ${existing.assetName} (${existing.assetCode}): ${trimmed}`,
+    relatedModel: 'Contract',
+    relatedId: id,
+  });
+
+  revalidatePath('/contracts');
+  revalidatePath('/employees');
+  return { success: true, data: { endedAt: endedAt.toISOString() } };
+}
+
 export async function fetchEligibleLaptopEmployees(): Promise<ActionResult<EligibleContractOption[]>> {
   await connectDB();
   const options = await getEligibleLaptopEmployees();
   return { success: true, data: options };
 }
+

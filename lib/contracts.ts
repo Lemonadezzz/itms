@@ -1,7 +1,9 @@
 export type ContractStatus = 'On Going' | 'Fully Paid';
+export type ContractLifecycleStatus = 'Active' | 'Ended';
 
 export const DEFAULT_CONTRACT_MONTHS = 24;
 export const MAX_CONTRACT_CONTRIBUTION = 30_000;
+export const CONTRACT_TERM_YEARS = 5;
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -38,6 +40,68 @@ export function addMonths(date: Date, months: number): Date {
   const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
   d.setUTCDate(Math.min(day, daysInMonth));
   return d;
+}
+
+/** Add a number of years to a date, clamping the day to the target month. */
+export function addYears(date: Date, years: number): Date {
+  const d = new Date(date.getTime());
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCFullYear(d.getUTCFullYear() + years);
+  const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, daysInMonth));
+  return d;
+}
+
+/** Tenure since the issued date, e.g. "2yrs. 3months". */
+export function formatTenure(issuedDate: Date | string, referenceDate: Date = new Date()): string {
+  const months = monthsElapsed(new Date(issuedDate), referenceDate);
+  const years = Math.floor(months / 12);
+  const remainder = months % 12;
+  return `${years}yr${years === 1 ? '' : 's'}. ${remainder}month${remainder === 1 ? '' : 's'}`;
+}
+
+/** Short tenure label, e.g. "4yrs 3mos", "1yr 1mo". */
+export function formatTenureShort(months: number): string {
+  const years = Math.floor(months / 12);
+  const remainder = months % 12;
+  const yrStr = years > 0 ? `${years}yr${years > 1 ? 's' : ''}` : '';
+  const moStr = remainder > 0 ? `${remainder}mo${remainder > 1 ? 's' : ''}` : '';
+  return [yrStr, moStr].filter(Boolean).join(' ') || '0mos';
+}
+
+/** The contract ends 5 years after the laptop was issued. */
+export function getContractEnd(issuedDate: Date | string): Date {
+  return addYears(new Date(issuedDate), CONTRACT_TERM_YEARS);
+}
+
+/** Active until the 5-year contract end date, then Ended. */
+export function getContractLifecycleStatus(
+  issuedDate: Date | string,
+  referenceDate: Date = new Date()
+): ContractLifecycleStatus {
+  return referenceDate.getTime() >= getContractEnd(issuedDate).getTime() ? 'Ended' : 'Active';
+}
+
+/**
+ * The date the contract actually ends: the early end date when a contract was
+ * ended manually, otherwise the default 5-year contract end.
+ */
+export function getEffectiveContractEnd(
+  issuedDate: Date | string,
+  endedAt?: Date | string | null
+): Date {
+  return endedAt ? new Date(endedAt) : getContractEnd(issuedDate);
+}
+
+/** Contract status, taking an early end into account. */
+export function resolveContractStatus(
+  issuedDate: Date | string,
+  endedAt?: Date | string | null,
+  referenceDate: Date = new Date()
+): ContractLifecycleStatus {
+  if (endedAt) return 'Ended';
+  return getContractLifecycleStatus(issuedDate, referenceDate);
 }
 
 /** Whole months elapsed between two dates. */

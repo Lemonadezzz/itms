@@ -10,6 +10,8 @@ export interface IContract extends Document {
   numberOfMonths: number;
   perCutoff: number;
   totalContribution: number;
+  endedAt?: Date;       // set when the contract is ended early
+  endReason?: string;   // why the contract was ended
   isDeleted: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -26,6 +28,8 @@ const ContractSchema = new Schema<IContract>(
     numberOfMonths: { type: Number, required: true, min: 1 },
     perCutoff: { type: Number, required: true, min: 0 },
     totalContribution: { type: Number, required: true, min: 0 },
+    endedAt: { type: Date },
+    endReason: { type: String, trim: true },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }

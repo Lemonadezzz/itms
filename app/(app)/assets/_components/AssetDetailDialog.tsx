@@ -4,8 +4,9 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   Box, Typography, Grid, Chip, Divider, Paper, Skeleton, MenuItem, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, IconButton,
+  Snackbar, Alert,
 } from '@mui/material';
-import { Close, PublishedWithChanges, AssignmentTurnedIn, MoveDown, DesktopAccessDisabled, MoveUp, Edit } from '@mui/icons-material';
+import { Close, PublishedWithChanges, AssignmentTurnedIn, MoveDown, DesktopAccessDisabled, MoveUp, Edit, Delete } from '@mui/icons-material';
 import { useMemo, useState, useTransition, useEffect } from 'react';
 import {
   calculateCurrentValue,
@@ -13,7 +14,7 @@ import {
   getMonthlyDepreciationSchedule,
 } from '@/lib/depreciation';
 import type { AssetRow, AssetLogEntry } from '@/types';
-import { transferAsset, assignAsset, returnAsset, decommissionAsset, recommissionAsset } from '@/actions/assetActions';
+import { transferAsset, assignAsset, returnAsset, decommissionAsset, recommissionAsset, clearAssetLog } from '@/actions/assetActions';
 // Note: transferAsset is the server action for transfers, assignAsset is for new assignments
 import { AssignDialog } from './AssignDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -56,6 +57,8 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
   const [decommissionOpen, setDecommissionOpen] = useState(false);
   const [recommissionOpen, setRecommissionOpen] = useState(false);
   const [confirmDeliveryOpen, setConfirmDeliveryOpen] = useState(false);
+  const [clearLogOpen, setClearLogOpen] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
 
   // Refresh data when opening dialog with new asset
   const [currentAsset, setCurrentAsset] = useState(asset);
@@ -193,6 +196,30 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
     </TableContainer>
   );
 
+  const AssetLogHeader = () => (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Typography variant="subtitle1" fontWeight={700}>Asset Log</Typography>
+      <Tooltip
+        title={
+          status !== 'In Stock'
+            ? 'Clear asset log is only available while the asset is In Stock'
+            : 'Clear asset log (keeps the creation log)'
+        }
+      >
+        <span>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => setClearLogOpen(true)}
+            disabled={assetLog.length <= 1 || status !== 'In Stock'}
+          >
+            <Delete sx={{ fontSize: 16 }} />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Box>
+  );
+
   return (
     <>
       {/* ── Main detail dialog ── */}
@@ -258,6 +285,14 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
                       ? new Date(asset.assignedDate).toLocaleDateString('en-CA')
                       : '-'
                   } />
+                  {asset.hasActiveContract && (
+                    <Chip
+                      label="Device is on Active Contract"
+                      size="small"
+                      color="info"
+                      sx={{ fontSize: '0.72rem', height: 22, alignSelf: 'flex-start' }}
+                    />
+                  )}
 
                   <Divider sx={{ my: 0.5 }} />
 
@@ -292,10 +327,40 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
                     {status === 'In Use' && (
                       <Button variant="outlined" size="small" color="info" startIcon={<MoveDown />} onClick={() => { setTransferOpen(true); setTransferAction(null); setTransferEmpId(''); }}>Transfer / Return</Button>
                     )}
+                    {status === 'In Use' && asset.hasActiveContract && (
+                      <Tooltip title="This device is on an active contract.">
+                        <span>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="error"
+                            startIcon={<DesktopAccessDisabled />}
+                            disabled
+                            fullWidth
+                          >
+                            Decommission
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    )}
                     {status === 'In Stock' && (
                       <>
                         <Button variant="outlined" size="small" color="warning" startIcon={<AssignmentTurnedIn />} onClick={() => setAssignOpen(true)}>Assign</Button>
-                        <Button variant="outlined" size="small" color="error" startIcon={<DesktopAccessDisabled />} onClick={handleDecommission}>Decommission</Button>
+                        <Tooltip title={asset.hasActiveContract ? 'This device is on an active contract.' : ''}>
+                          <span>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              color="error"
+                              startIcon={<DesktopAccessDisabled />}
+                              onClick={handleDecommission}
+                              disabled={asset.hasActiveContract}
+                              fullWidth
+                            >
+                              Decommission
+                            </Button>
+                          </span>
+                        </Tooltip>
                       </>
                     )}
                     {status === 'Decommissioned' && (
@@ -353,7 +418,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
 
                   {/* Asset Log (custom panel) */}
                   <Paper sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Asset Log</Typography>
+                    <AssetLogHeader />
                     <AssetLogTable rows={assetLog} />
                   </Paper>
                 </Box>
@@ -366,7 +431,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
             {!hasDepreciation && (
               <Grid size={{ xs: 12 }}>
                 <Paper sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Asset Log</Typography>
+                  <AssetLogHeader />
                   <AssetLogTable rows={assetLog} />
                 </Paper>
               </Grid>
@@ -519,6 +584,36 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
           </DialogActions>
         )}
       </Dialog>
+
+      {/* ── Clear asset log confirmation ── */}
+      <ConfirmDialog
+        open={clearLogOpen}
+        title="Clear Asset Log?"
+        message="This removes all log entries for this asset except its creation log."
+        confirmLabel="Clear Log"
+        onConfirm={async () => {
+          const res = await clearAssetLog(asset._id);
+          if (!res.success) {
+            setLogError(res.error);
+            return false;
+          }
+          setAssetLog((prev) => prev.filter((entry) => entry.action === 'Asset created'));
+          setClearLogOpen(false);
+          return true;
+        }}
+        onCancel={() => setClearLogOpen(false)}
+      />
+
+      <Snackbar
+        open={!!logError}
+        autoHideDuration={4000}
+        onClose={() => setLogError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" sx={{ width: '100%' }}>
+          {logError}
+        </Alert>
+      </Snackbar>
     </>
   );
 }

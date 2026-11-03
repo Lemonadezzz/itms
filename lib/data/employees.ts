@@ -1,6 +1,9 @@
 import { connectDB } from '@/lib/db/mongoose';
 import { Employee } from '@/models/Employee';
 import { Asset } from '@/models/Asset';
+import { Contract } from '@/models/Contract';
+import { formatTenureShort, getContractLifecycleStatus, monthsElapsed } from '@/lib/contracts';
+import type { EmployeeContractBadge } from '@/lib/employeeBadges';
 
 export type EmployeeRow = {
   _id: string;
@@ -13,6 +16,8 @@ export type EmployeeRow = {
   resignedAt?: string;
   isDeleted: boolean;
   assignedAssetCount: number;
+  companyTenure: string;
+  contractBadge: EmployeeContractBadge;
 };
 
 export async function getEmployees({
@@ -40,21 +45,30 @@ export async function getEmployees({
     Employee.countDocuments(query),
   ]);
 
-  // Fetch assigned asset counts for all returned employees in one query
+  // Fetch assigned asset counts and contracts for all returned employees at once
   const employeeIds = docs.map((d) => d._id);
-  const assetCounts = await Asset.aggregate([
-    {
-      $match: {
-        'currentAssignment.employeeId': { $in: employeeIds },
-        status: 'In Use',
+  const [assetCounts, contracts] = await Promise.all([
+    Asset.aggregate([
+      {
+        $match: {
+          'currentAssignment.employeeId': { $in: employeeIds },
+          status: 'In Use',
+        },
       },
-    },
-    {
-      $group: {
-        _id: '$currentAssignment.employeeId',
-        count: { $sum: 1 },
+      {
+        $group: {
+          _id: '$currentAssignment.employeeId',
+          count: { $sum: 1 },
+        },
       },
-    },
+    ]),
+    Contract.find({
+      employeeId: { $in: employeeIds },
+      isDeleted: { $ne: true },
+      issuedDate: { $exists: true },
+    })
+      .select('employeeId issuedDate endedAt')
+      .lean(),
   ]);
 
   const countMap = new Map<string, number>();
@@ -62,19 +76,46 @@ export async function getEmployees({
     countMap.set(a._id.toString(), a.count);
   });
 
+  const activeContractEmployees = new Set<string>();
+  for (const contract of contracts) {
+    if (
+      contract.employeeId &&
+      contract.issuedDate &&
+      !contract.endedAt &&
+      getContractLifecycleStatus(contract.issuedDate) === 'Active'
+    ) {
+      activeContractEmployees.add(contract.employeeId.toString());
+    }
+  }
+
   return {
-    rows: docs.map((e) => ({
-      _id: e._id.toString(),
-      employeeName: e.employeeName,
-      email: e.email ?? '',
-      department: e.department,
-      userType: e.userType,
-      status: e.status,
-      hiredAt: (e.hiredAt || (e as any).hireDate)?.toISOString(),
-      resignedAt: e.resignedAt?.toISOString(),
-      isDeleted: e.isDeleted,
-      assignedAssetCount: countMap.get(e._id.toString()) ?? 0,
-    })),
+    rows: docs.map((e) => {
+      const id = e._id.toString();
+      const hiredAt = e.hiredAt || (e as any).hireDate;
+      const tenureEnd = e.status === 'Inactive' && e.resignedAt ? new Date(e.resignedAt) : new Date();
+      const tenureMonths = hiredAt ? monthsElapsed(new Date(hiredAt), tenureEnd) : 0;
+
+      const contractBadge: EmployeeContractBadge = activeContractEmployees.has(id)
+        ? 'Active'
+        : tenureMonths < 12
+          ? 'None'
+          : 'Eligible';
+
+      return {
+        _id: id,
+        employeeName: e.employeeName,
+        email: e.email ?? '',
+        department: e.department,
+        userType: e.userType,
+        status: e.status,
+        hiredAt: hiredAt?.toISOString(),
+        resignedAt: e.resignedAt?.toISOString(),
+        isDeleted: e.isDeleted,
+        assignedAssetCount: countMap.get(id) ?? 0,
+        companyTenure: formatTenureShort(tenureMonths),
+        contractBadge,
+      };
+    }),
     total,
   };
 }

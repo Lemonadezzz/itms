@@ -2,9 +2,16 @@ import { connectDB } from '@/lib/db/mongoose';
 import { Contract, IContract } from '@/models/Contract';
 import { Asset } from '@/models/Asset';
 import { Employee } from '@/models/Employee';
-import { computeContractMetrics } from '@/lib/contracts';
-import type { ContractStatus } from '@/lib/contracts';
-import type { Types } from 'mongoose';
+import {
+  computeContractMetrics,
+  formatTenure,
+  formatTenureShort,
+  getEffectiveContractEnd,
+  monthsElapsed,
+  resolveContractStatus,
+} from '@/lib/contracts';
+import type { ContractLifecycleStatus, ContractStatus } from '@/lib/contracts';
+import { Types } from 'mongoose';
 
 export type ContractRow = {
   _id: string;
@@ -26,6 +33,11 @@ export type ContractRow = {
   totalPaid: number;
   remaining: number;
   status: ContractStatus;
+  tenure: string;
+  contractEnd: string;
+  contractStatus: ContractLifecycleStatus;
+  endedAt?: string;
+  endReason?: string;
 };
 
 export type EligibleContractOption = {
@@ -120,12 +132,15 @@ export async function getContracts({
     rows: docs.map((c) => {
       const employee = isPopulated(c.employeeId) ? c.employeeId : null;
       const asset = isPopulatedAsset(c.assetId) ? c.assetId : null;
+      // An ended contract freezes its figures at the moment it ended.
+      const endedAt = c.endedAt ? new Date(c.endedAt) : null;
+      const reference = endedAt ?? now;
       const metrics = computeContractMetrics({
         issuedDate: c.issuedDate,
         numberOfMonths: c.numberOfMonths,
         perCutoff: c.perCutoff,
         totalContribution: c.totalContribution,
-        referenceDate: now,
+        referenceDate: reference,
       });
 
       return {
@@ -133,7 +148,7 @@ export async function getContracts({
         employeeId: employee?._id?.toString() ?? '',
         employeeName: employee?.employeeName || c.employeeName,
         employeeStatus: employee?.status || 'Unknown',
-        assetId: asset ? asset._id.toString() : c.assetId.toString(),
+        assetId: asset ? asset._id.toString() : c.assetId?.toString() ?? '',
         assetName: c.assetName,
         assetCode: c.assetCode,
         acquisitionCost: asset?.acquisitionCost ?? 0,
@@ -148,17 +163,66 @@ export async function getContracts({
         totalPaid: metrics.totalPaid,
         remaining: metrics.remaining,
         status: metrics.status,
+        tenure: formatTenure(c.issuedDate, reference),
+        contractEnd: getEffectiveContractEnd(c.issuedDate, endedAt).toISOString(),
+        contractStatus: resolveContractStatus(c.issuedDate, endedAt, now),
+        endedAt: endedAt?.toISOString(),
+        endReason: c.endReason,
       };
     }),
     total,
   };
 }
 
+export type EmployeeContractSummary = {
+  _id: string;
+  assetCode: string;
+  assetName: string;
+  issuedDate: string;
+  contractEnd: string;
+  tenure: string;
+  tenureShort: string;
+  contractStatus: ContractLifecycleStatus;
+};
+
+/** All non-deleted contracts for an employee, oldest first. */
+export async function getContractsByEmployee(
+  employeeId: string
+): Promise<EmployeeContractSummary[]> {
+  await connectDB();
+  if (!Types.ObjectId.isValid(employeeId)) return [];
+
+  const docs = await Contract.find({
+    employeeId,
+    isDeleted: { $ne: true },
+    issuedDate: { $exists: true },
+  })
+    .sort({ issuedDate: 1 })
+    .lean();
+
+  const now = new Date();
+
+  return docs.map((c) => {
+    const endedAt = c.endedAt ? new Date(c.endedAt) : null;
+    const reference = endedAt ?? now;
+
+    return {
+      _id: c._id.toString(),
+      assetCode: c.assetCode,
+      assetName: c.assetName,
+      issuedDate: new Date(c.issuedDate).toISOString(),
+      contractEnd: getEffectiveContractEnd(c.issuedDate, endedAt).toISOString(),
+      tenure: formatTenure(c.issuedDate, reference),
+      tenureShort: formatTenureShort(monthsElapsed(new Date(c.issuedDate), reference)),
+      contractStatus: resolveContractStatus(c.issuedDate, endedAt, now),
+    };
+  });
+}
+
 /**
  * Employees who currently hold a laptop and do not already have a contract.
  * One option per employee (their first eligible laptop).
- */
-export async function getEligibleLaptopEmployees(): Promise<EligibleContractOption[]> {
+ */export async function getEligibleLaptopEmployees(): Promise<EligibleContractOption[]> {
   await connectDB();
 
   const [assets, contracts] = await Promise.all([

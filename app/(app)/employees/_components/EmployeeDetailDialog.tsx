@@ -6,8 +6,10 @@ import {
 } from '@mui/material';
 import { Close, Edit } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
-import { checkEmployeeAssets } from '@/actions/employeeActions';
+import { checkEmployeeAssets, checkEmployeeContracts } from '@/actions/employeeActions';
+import { EMPLOYEE_CONTRACT_BADGE_COLORS } from '@/lib/employeeBadges';
 import type { EmployeeRow } from '@/lib/data/employees';
+import type { EmployeeContractSummary } from '@/lib/data/contracts';
 
 const USER_TYPE_LABELS: Record<string, string> = {
   support: 'Support',
@@ -16,19 +18,14 @@ const USER_TYPE_LABELS: Record<string, string> = {
   poweruser: 'Power User',
 };
 
-function monthsBetween(start: Date, end: Date): number {
-  let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
-  if (end.getDate() < start.getDate()) months -= 1;
-  return Math.max(0, months);
+/** YYYY-MM */
+function formatMonth(value: string): string {
+  return value.slice(0, 7);
 }
 
-function formatDuration(months: number): string {
-  const years = Math.floor(months / 12);
-  const remainder = months % 12;
-  const parts: string[] = [];
-  if (years > 0) parts.push(`${years} year${years > 1 ? 's' : ''}`);
-  if (remainder > 0) parts.push(`${remainder} month${remainder > 1 ? 's' : ''}`);
-  return parts.length ? parts.join(' ') : 'Less than a month';
+/** YYYY-MM-DD */
+function formatDay(value: string): string {
+  return value.slice(0, 10);
 }
 
 interface Props {
@@ -39,27 +36,35 @@ interface Props {
 
 export function EmployeeDetailDialog({ employee, onClose, onEdit }: Props) {
   const isInactive = employee.status === 'Inactive';
-  const hiredAt = employee.hiredAt ? new Date(employee.hiredAt) : null;
-  const endDate = isInactive && employee.resignedAt ? new Date(employee.resignedAt) : new Date();
-  const duration = hiredAt && !Number.isNaN(hiredAt.getTime())
-    ? formatDuration(monthsBetween(hiredAt, endDate))
-    : '-';
 
   const [assets, setAssets] = useState<Array<{ _id: string; assetCode: string; assetName: string; status: string }>>([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
+  const [contracts, setContracts] = useState<EmployeeContractSummary[]>([]);
+  const [contractsLoading, setContractsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setAssetsLoading(true);
-    checkEmployeeAssets(employee._id)
-      .then((res) => {
-        if (!cancelled && res.success) setAssets(res.data.assets);
-      })
-      .finally(() => {
-        if (!cancelled) setAssetsLoading(false);
-      });
+    setContractsLoading(true);
+    Promise.allSettled([
+      checkEmployeeAssets(employee._id),
+      checkEmployeeContracts(employee._id),
+    ]).then(([assetsRes, contractsRes]) => {
+      if (cancelled) return;
+      if (assetsRes.status === 'fulfilled' && assetsRes.value.success) {
+        setAssets(assetsRes.value.data.assets);
+      }
+      if (contractsRes.status === 'fulfilled' && contractsRes.value.success) {
+        setContracts(contractsRes.value.data);
+      }
+      setAssetsLoading(false);
+      setContractsLoading(false);
+    });
     return () => { cancelled = true; };
   }, [employee._id]);
+
+  const activeContracts = contracts.filter((c) => c.contractStatus === 'Active');
+  const previousContracts = contracts.filter((c) => c.contractStatus === 'Ended');
 
   return (
     <Dialog
@@ -113,7 +118,7 @@ export function EmployeeDetailDialog({ employee, onClose, onEdit }: Props) {
                 value={new Date(employee.resignedAt).toLocaleDateString('en-CA')}
               />
             )}
-            <InfoRow label="Duration in Company" value={duration} />
+            <InfoRow label="Company Tenure" value={employee.companyTenure} />
 
             <Divider sx={{ my: 0.5 }} />
 
@@ -131,7 +136,12 @@ export function EmployeeDetailDialog({ employee, onClose, onEdit }: Props) {
                     <ListItem
                       key={asset._id}
                       disableGutters
-                      sx={{ py: 0.25, borderBottom: 1, borderColor: 'divider' }}
+                      sx={{
+                        py: 0.25,
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        '&:last-of-type': { borderBottom: 0 },
+                      }}
                     >
                       <ListItemText
                         primary={asset.assetCode}
@@ -143,6 +153,50 @@ export function EmployeeDetailDialog({ employee, onClose, onEdit }: Props) {
                   ))}
                 </List>
               )}
+            </Box>
+
+            <Divider sx={{ my: 0.5 }} />
+
+            <Box>
+              <Typography component="div" variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                Contracts
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Chip
+                  label={employee.contractBadge}
+                  size="small"
+                  color={EMPLOYEE_CONTRACT_BADGE_COLORS[employee.contractBadge]}
+                  sx={{ fontSize: '0.72rem', height: 22 }}
+                />
+                {activeContracts.map((contract) => (
+                  <Typography
+                    key={contract._id}
+                    variant="body2"
+                    fontWeight={500}
+                    sx={{ fontSize: '0.78rem' }}
+                  >
+                    {contract.assetCode} - {contract.assetName} - {formatDay(contract.issuedDate)} - {contract.tenureShort}
+                  </Typography>
+                ))}
+              </Box>
+
+              {contractsLoading ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Loading…
+                </Typography>
+              ) : previousContracts.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, mt: 0.75 }}>
+                  {previousContracts.map((contract) => (
+                    <Typography
+                      key={contract._id}
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      {contract.assetName} - {formatMonth(contract.issuedDate)} - {formatMonth(contract.contractEnd)}
+                    </Typography>
+                  ))}
+                </Box>
+              ) : null}
             </Box>
           </Box>
         </Paper>

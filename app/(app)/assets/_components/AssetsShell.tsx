@@ -118,7 +118,13 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
         confirmLabel="Delete"
         onConfirm={async () => {
           if (!deleteTarget) return false;
-          await deleteAsset(deleteTarget._id);
+          const res = await deleteAsset(deleteTarget._id);
+          if (!res.success) {
+            setErrorMsg(res.error);
+            return false;
+          }
+          setLocalRows((prev) => prev.filter((r) => r._id !== deleteTarget._id));
+          setDetailTarget((prev) => (prev && prev._id === deleteTarget._id ? null : prev));
           setDeleteTarget(null);
           return true;
         }}

@@ -1,18 +1,23 @@
 'use client';
 
 import {
-  Box, Button, Chip, Dialog, DialogContent, DialogTitle,
-  Divider, Grid, IconButton, Paper, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Tooltip, Typography,
+  Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
+  DialogTitle, Divider, FormControl, FormControlLabel, FormLabel, Grid, IconButton,
+  Paper, Radio, RadioGroup, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, TextField, Tooltip, Typography,
 } from '@mui/material';
 import { Close, Edit } from '@mui/icons-material';
+import { useState, useTransition } from 'react';
+import { endContract } from '@/actions/contractActions';
 import { getMonthlyDepreciationSchedule } from '@/lib/depreciation';
+import { computeContractMetrics, formatTenure } from '@/lib/contracts';
 import type { ContractRow } from '@/lib/data/contracts';
 
 interface Props {
   contract: ContractRow;
   onClose: () => void;
   onEdit?: () => void;
+  onUpdated?: (updated: ContractRow) => void;
 }
 
 const peso = (value: number) =>
@@ -23,30 +28,68 @@ const formatDate = (value: string) => {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('en-CA');
 };
 
-/**
- * A device becomes eligible for a new contract once it is 3 years old
- * (counted from its acquisition date).
- */
-function getEligibility(value: string): { eligible: boolean; months: number } {
+const formatMonth = (value: string) => {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { eligible: false, months: 1 };
+  return Number.isNaN(date.getTime()) ? '-' : date.toISOString().slice(0, 7);
+};
 
-  const now = new Date();
-  const thirdAnniversary = new Date(date.getFullYear() + 3, date.getMonth(), date.getDate());
-  if (now >= thirdAnniversary) return { eligible: true, months: 0 };
-
-  let months =
-    (thirdAnniversary.getFullYear() - now.getFullYear()) * 12 +
-    (thirdAnniversary.getMonth() - now.getMonth());
-  if (thirdAnniversary.getDate() < now.getDate()) months -= 1;
-
-  return { eligible: false, months: Math.max(1, months) };
-}
-
-export function ContractDetailDialog({ contract, onClose, onEdit }: Props) {
+export function ContractDetailDialog({ contract, onClose, onEdit, onUpdated }: Props) {
   const isFullyPaid = contract.status === 'Fully Paid';
+  const isActive = contract.contractStatus === 'Active';
+  const isEnded = contract.contractStatus === 'Ended';
   const hasSchedule = !!contract.depreciationMethod && !!contract.acquisitionDate;
-  const eligibility = getEligibility(contract.acquisitionDate || contract.issuedDate);
+
+  const [endOpen, setEndOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [disposition, setDisposition] = useState<'decommission' | 'return'>('decommission');
+  const [endError, setEndError] = useState('');
+  const [isEnding, startEnding] = useTransition();
+
+  function openEndDialog() {
+    setReason('');
+    setDisposition('decommission');
+    setEndError('');
+    setEndOpen(true);
+  }
+
+  function handleEndContract() {
+    const trimmed = reason.trim();
+    if (!trimmed) return setEndError('Please provide a reason for ending the contract.');
+
+    const snapshot = contract;
+    const endedAtDate = new Date();
+    const endedAt = endedAtDate.toISOString();
+    const metrics = computeContractMetrics({
+      issuedDate: snapshot.issuedDate,
+      numberOfMonths: snapshot.numberOfMonths,
+      perCutoff: snapshot.perCutoff,
+      totalContribution: snapshot.totalContribution,
+      referenceDate: endedAtDate,
+    });
+
+    // Optimistically freeze the contract at the moment it ended.
+    onUpdated?.({
+      ...snapshot,
+      endedAt,
+      endReason: trimmed,
+      contractEnd: endedAt,
+      contractStatus: 'Ended',
+      tenure: formatTenure(snapshot.issuedDate, endedAtDate),
+      totalPaid: metrics.totalPaid,
+      remaining: metrics.remaining,
+      status: metrics.status,
+    });
+    setEndOpen(false);
+
+    startEnding(async () => {
+      const res = await endContract(snapshot._id, trimmed, disposition);
+      if (!res.success) {
+        onUpdated?.(snapshot);
+        setEndError(res.error);
+        setEndOpen(true);
+      }
+    });
+  }
 
   const schedule = hasSchedule
     ? getMonthlyDepreciationSchedule(
@@ -58,6 +101,7 @@ export function ContractDetailDialog({ contract, onClose, onEdit }: Props) {
     : [];
 
   return (
+    <>
     <Dialog
       open
       onClose={onClose}
@@ -83,8 +127,15 @@ export function ContractDetailDialog({ contract, onClose, onEdit }: Props) {
           <Grid size={{ xs: 12, md: hasSchedule ? 5 : 12 }}>
             <Paper sx={{ p: 2, height: '100%' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight={700}>Contract Information</Typography>
-                {onEdit && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography variant="subtitle1" fontWeight={700}>Contract Information</Typography>
+                  {isEnded && (
+                    <Typography variant="caption" fontWeight={700} color="error.main">
+                      Contract Ended: {formatMonth(contract.endedAt ?? contract.contractEnd)}
+                    </Typography>
+                  )}
+                </Box>
+                {onEdit && isActive && (
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={onEdit}>
                       <Edit sx={{ fontSize: 15 }} />
@@ -176,18 +227,38 @@ export function ContractDetailDialog({ contract, onClose, onEdit }: Props) {
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <InfoRow label="Deployment Tenure" value={contract.tenure} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <InfoRow label="Contract End" value={formatDate(contract.contractEnd)} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <InfoRow
-                    label="Eligibility"
+                    label="Contract Status"
                     value={
-                      <Typography component="span" variant="body2" fontWeight={700} color="info.main">
-                        {eligibility.eligible
-                          ? 'Eligible for New Contract'
-                          : `Eligible in ${eligibility.months} month${eligibility.months === 1 ? '' : 's'}`}
-                      </Typography>
+                      <Chip
+                        label={contract.contractStatus}
+                        size="small"
+                        color={contract.contractStatus === 'Active' ? 'success' : 'default'}
+                        sx={{ fontSize: '0.72rem', height: 22 }}
+                      />
                     }
                   />
                 </Grid>
+                {isEnded && contract.endReason && (
+                  <Grid size={{ xs: 12 }}>
+                    <InfoRow label="End Reason" value={contract.endReason} />
+                  </Grid>
+                )}
               </Grid>
+
+              {isActive && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
+                  <Button size="small" variant="outlined" color="error" onClick={openEndDialog}>
+                    End Contract
+                  </Button>
+                </Box>
+              )}
             </Paper>
           </Grid>
 
@@ -238,6 +309,79 @@ export function ContractDetailDialog({ contract, onClose, onEdit }: Props) {
         </Grid>
       </DialogContent>
     </Dialog>
+
+    <Dialog
+      open={endOpen}
+      onClose={() => { if (!isEnding) setEndOpen(false); }}
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 700 }}>
+        End Contract?
+      </DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" sx={{ mb: 1.5 }}>
+          This will end {contract.employeeName}&apos;s contract for{' '}
+          {contract.assetCode} - {contract.assetName}. This cannot be undone.
+        </Typography>
+
+        <FormControl sx={{ mb: 1.5 }}>
+          <FormLabel sx={{ fontSize: '0.78rem', fontWeight: 600 }}>
+            What happens to the device?
+          </FormLabel>
+          <RadioGroup
+            row
+            value={disposition}
+            onChange={(e) => setDisposition(e.target.value as 'decommission' | 'return')}
+          >
+            <FormControlLabel
+              value="decommission"
+              control={<Radio size="small" />}
+              label={<Typography variant="body2">Decommission Asset</Typography>}
+            />
+            <FormControlLabel
+              value="return"
+              control={<Radio size="small" />}
+              label={<Typography variant="body2">Return to Stock</Typography>}
+            />
+          </RadioGroup>
+          <Typography variant="caption" color="text.secondary">
+            {disposition === 'return'
+              ? 'The device will be returned to the company and become available for assignment again.'
+              : 'The device will be decommissioned using the same reason.'}
+          </Typography>
+        </FormControl>
+
+        {endError && <Alert severity="error" sx={{ mb: 1.5, py: 0 }}>{endError}</Alert>}
+        <TextField
+          autoFocus
+          fullWidth
+          multiline
+          minRows={2}
+          size="small"
+          label="Reason"
+          placeholder="e.g. Employee resigned early, device died unexpectedly"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          disabled={isEnding}
+          inputProps={{ maxLength: 500 }}
+        />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button size="small" onClick={() => setEndOpen(false)} disabled={isEnding}>No</Button>
+        <Button
+          size="small"
+          variant="contained"
+          color="error"
+          onClick={handleEndContract}
+          disabled={isEnding || !reason.trim()}
+          startIcon={isEnding ? <CircularProgress size={12} color="inherit" /> : null}
+        >
+          Yes, End Contract
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }
 

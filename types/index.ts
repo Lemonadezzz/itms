@@ -27,6 +27,7 @@ export type AssetRow = {
   status?: string;
   depreciationMethod?: string;
   assignmentHistory: AssetAssignmentHistory[];
+  hasActiveContract?: boolean;
 };
 
 export type PaginationParams = {
