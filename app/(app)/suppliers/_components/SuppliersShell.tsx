@@ -45,7 +45,16 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
     {
       field: 'categories', headerName: 'Categories', width: 200,
       renderCell: ({ value }) => (
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            alignContent: 'center',
+            gap: 0.5,
+            flexWrap: 'wrap',
+            height: '100%',
+          }}
+        >
           {(value as string[]).map((c) => (
             <Chip key={c} label={c} size="small" sx={{ fontSize: '0.65rem', height: 18 }} />
           ))}

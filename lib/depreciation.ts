@@ -1,11 +1,3 @@
-const YEARLY_RATES: Record<number, number> = {
-  1: 0.25,
-  2: 0.25,
-  3: 0.40,
-  4: 0.075,
-  5: 0.025,
-};
-
 // Fixed reference date to prevent hydration mismatch
 const REFERENCE_DATE = new Date('2025-01-01T00:00:00.000Z').getTime();
 
@@ -64,6 +56,35 @@ function getDecliningBalanceRatio(monthNumber: number): number {
   return Math.max(startOfYearValue * (1 - monthlyRate * (currentYearMonth - 1)), 0);
 }
 
+function getRemainingRatioForMethod(method: string, monthNumber: number): number {
+  if (method === 'straight-line') return getStraightLineRatio(monthNumber);
+  if (method === 'declining-balance') return getDecliningBalanceRatio(monthNumber);
+  return getRemainingRatio(monthNumber);
+}
+
+/**
+ * Value of an asset at an explicit point in time. Unlike
+ * `calculateCurrentValue`, this never falls back to the fixed server
+ * reference date, so server-side reporting can use the real current date.
+ */
+export function calculateValueAtDate(
+  acquisitionCost: number,
+  acquisitionDate: string,
+  method: string = 'custom',
+  referenceDate: Date | string | number = new Date(),
+  assignedDate?: string
+): number {
+  const now = new Date(referenceDate).getTime();
+  const startDate = method === 'custom' && assignedDate ? assignedDate : acquisitionDate;
+  const monthsElapsed = Math.floor(
+    (now - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+  );
+  if (monthsElapsed >= 60) return 0;
+
+  const ratio = getRemainingRatioForMethod(method, monthsElapsed + 1);
+  return Math.max(Math.round(acquisitionCost * ratio * 100) / 100, 0);
+}
+
 export function calculateCurrentValue(
   acquisitionCost: number,
   acquisitionDate: string,
@@ -73,23 +94,7 @@ export function calculateCurrentValue(
   const isServer = typeof window === 'undefined';
   const now = isServer ? REFERENCE_DATE : Date.now();
 
-  const startDate = method === 'custom' && assignedDate ? assignedDate : acquisitionDate;
-  const monthsElapsed = Math.floor(
-    (now - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
-  );
-  if (monthsElapsed >= 60) return 0;
-
-  const monthNumber = monthsElapsed + 1;
-  let ratio: number;
-  if (method === 'straight-line') {
-    ratio = getStraightLineRatio(monthNumber);
-  } else if (method === 'declining-balance') {
-    ratio = getDecliningBalanceRatio(monthNumber);
-  } else {
-    ratio = getRemainingRatio(monthNumber);
-  }
-
-  return Math.max(Math.round(acquisitionCost * ratio * 100) / 100, 0);
+  return calculateValueAtDate(acquisitionCost, acquisitionDate, method, now, assignedDate);
 }
 
 export function isFullyDepreciated(
@@ -139,14 +144,7 @@ export function getMonthlyDepreciationSchedule(
 
     const yearValues = [1, 2, 3, 4, 5].map((year) => {
       const monthNumber = (year - 1) * 12 + month + 1;
-      let ratio: number;
-      if (method === 'straight-line') {
-        ratio = getStraightLineRatio(monthNumber);
-      } else if (method === 'declining-balance') {
-        ratio = getDecliningBalanceRatio(monthNumber);
-      } else {
-        ratio = getRemainingRatio(monthNumber);
-      }
+      const ratio = getRemainingRatioForMethod(method, monthNumber);
       return Math.max(Math.round(acquisitionCost * ratio * 100) / 100, 0);
     });
 

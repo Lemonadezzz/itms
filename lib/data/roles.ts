@@ -33,16 +33,23 @@ export async function getRoles(): Promise<RoleRow[]> {
       key,
       name: doc?.name ?? def.name,
       description: doc?.description ?? def.description,
-      permissions: normalizePermissions(doc?.permissions ?? def.permissions),
-      editable: doc?.editable ?? def.editable,
+      // Only the Admin role is editable. Locked roles always use the
+      // permissions defined in code so stale seeded documents cannot
+      // silently drop modules added later.
+      permissions: def.editable
+        ? normalizePermissions(doc?.permissions ?? def.permissions)
+        : def.permissions,
+      editable: def.editable,
       userCount: countMap.get(key) ?? 0,
     };
   });
 }
 
 export async function getRolePermissions(key: string): Promise<string[]> {
+  const def = ROLE_DEFINITIONS[key as keyof typeof ROLE_DEFINITIONS] ?? ROLE_DEFINITIONS.user;
+  if (!def.editable) return def.permissions;
+
   await connectDB();
   const doc = await Role.findOne({ key }).lean();
-  const def = ROLE_DEFINITIONS[key as keyof typeof ROLE_DEFINITIONS] ?? ROLE_DEFINITIONS.user;
   return normalizePermissions(doc?.permissions ?? def.permissions);
 }

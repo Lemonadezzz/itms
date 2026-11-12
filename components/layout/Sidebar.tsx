@@ -141,7 +141,7 @@ export function Sidebar() {
           {open && (
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, pl: 1 }}>
               <Typography fontWeight={800} sx={{ color: '#F05340', fontSize: '0.95rem', lineHeight: 1 }}>ITMS</Typography>
-              <Typography sx={{ color: 'text.disabled', fontSize: '0.62rem', lineHeight: 1 }}>v0.1.2</Typography>
+              <Typography sx={{ color: 'text.disabled', fontSize: '0.62rem', lineHeight: 1 }}>v1.5.0</Typography>
             </Box>
           )}
           <IconButton onClick={() => setOpen((v) => !v)} size="small">
@@ -155,35 +155,35 @@ export function Sidebar() {
         <List dense disablePadding sx={{ mt: 0.5 }}>
           {/* Assets category — the label links to the Overview page */}
           {visibleAssets.length > 0 && (
-          <Tooltip title={open ? '' : 'Assets'} placement="right" arrow>
-            <ListItemButton component="div" onClick={() => router.push('/assets-overview')} sx={{ ...itemSx, cursor: 'pointer' }}>
-              <ListItemIcon sx={iconSx(assetsActive)}>
-                <Inventory fontSize="small" />
-              </ListItemIcon>
-              {open && (
-                <>
-                  <ListItemText
-                    primary="Assets"
-                    primaryTypographyProps={{
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      noWrap: true,
-                      color: assetsActive ? 'primary.main' : 'inherit',
-                    }}
-                    sx={{ ml: 0.5 }}
-                  />
-                  <IconButton
-                    size="small"
-                    aria-label={assetsOpen ? 'Collapse Assets' : 'Expand Assets'}
-                    onClick={(e) => { e.stopPropagation(); setAssetsOpen((v) => !v); }}
-                    sx={{ mr: 0.5, color: 'text.secondary' }}
-                  >
-                    {assetsOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                  </IconButton>
-                </>
-              )}
-            </ListItemButton>
-          </Tooltip>
+            <Tooltip title={open ? '' : 'Assets'} placement="right" arrow>
+              <ListItemButton component="div" onClick={() => router.push('/assets-overview')} sx={{ ...itemSx, cursor: 'pointer' }}>
+                <ListItemIcon sx={iconSx(assetsActive)}>
+                  <Inventory fontSize="small" />
+                </ListItemIcon>
+                {open && (
+                  <>
+                    <ListItemText
+                      primary="Assets"
+                      primaryTypographyProps={{
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        noWrap: true,
+                        color: assetsActive ? 'primary.main' : 'inherit',
+                      }}
+                      sx={{ ml: 0.5 }}
+                    />
+                    <IconButton
+                      size="small"
+                      aria-label={assetsOpen ? 'Collapse Assets' : 'Expand Assets'}
+                      onClick={(e) => { e.stopPropagation(); setAssetsOpen((v) => !v); }}
+                      sx={{ mr: 0.5, color: 'text.secondary' }}
+                    >
+                      {assetsOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                    </IconButton>
+                  </>
+                )}
+              </ListItemButton>
+            </Tooltip>
           )}
 
           {(open ? assetsOpen : true) && visibleAssets.map(({ text, href, icon }) => {
@@ -222,35 +222,35 @@ export function Sidebar() {
 
           {/* Employee Management category */}
           {visibleEmployees.length > 0 && (
-          <Tooltip title={open ? '' : 'Employee Management'} placement="right" arrow>
-            <ListItemButton component="div" onClick={() => setEmployeesOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
-              <ListItemIcon sx={iconSx(employeesActive)}>
-                <ManageAccounts fontSize="small" />
-              </ListItemIcon>
-              {open && (
-                <>
-                  <ListItemText
-                    primary="Employee Management"
-                    primaryTypographyProps={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      noWrap: true,
-                      color: employeesActive ? 'primary.main' : 'inherit',
-                    }}
-                    sx={{ ml: 0.5 }}
-                  />
-                  <IconButton
-                    size="small"
-                    aria-label={employeesOpen ? 'Collapse Employee Management' : 'Expand Employee Management'}
-                    onClick={(e) => { e.stopPropagation(); setEmployeesOpen((v) => !v); }}
-                    sx={{ mr: 0.5, color: 'text.secondary' }}
-                  >
-                    {employeesOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                  </IconButton>
-                </>
-              )}
-            </ListItemButton>
-          </Tooltip>
+            <Tooltip title={open ? '' : 'Employee Management'} placement="right" arrow>
+              <ListItemButton component="div" onClick={() => setEmployeesOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
+                <ListItemIcon sx={iconSx(employeesActive)}>
+                  <ManageAccounts fontSize="small" />
+                </ListItemIcon>
+                {open && (
+                  <>
+                    <ListItemText
+                      primary="Employee Management"
+                      primaryTypographyProps={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        noWrap: true,
+                        color: employeesActive ? 'primary.main' : 'inherit',
+                      }}
+                      sx={{ ml: 0.5 }}
+                    />
+                    <IconButton
+                      size="small"
+                      aria-label={employeesOpen ? 'Collapse Employee Management' : 'Expand Employee Management'}
+                      onClick={(e) => { e.stopPropagation(); setEmployeesOpen((v) => !v); }}
+                      sx={{ mr: 0.5, color: 'text.secondary' }}
+                    >
+                      {employeesOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                    </IconButton>
+                  </>
+                )}
+              </ListItemButton>
+            </Tooltip>
           )}
 
           {(open ? employeesOpen : true) && visibleEmployees.map(({ text, href, icon }) => {

@@ -28,6 +28,9 @@ const STATUS_COLORS: Record<string, 'success' | 'default' | 'warning'> = {
   'No Account': 'warning',
 };
 
+const roleLabel = (key?: string) =>
+  key ? key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) : '';
+
 export function AccountsShell({ rows, total, page, pageSize, roles, canManage, isDeveloper }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -35,6 +38,8 @@ export function AccountsShell({ rows, total, page, pageSize, roles, canManage, i
   const [, startTransition] = useTransition();
   const [createTarget, setCreateTarget] = useState<AccountRow | null>(null);
   const [manageTarget, setManageTarget] = useState<AccountRow | null>(null);
+
+  const roleNames = new Map(roles.map((role) => [role.key, role.name]));
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -48,19 +53,32 @@ export function AccountsShell({ rows, total, page, pageSize, roles, canManage, i
       headerName: 'Name',
       flex: 1,
       minWidth: 240,
-      renderCell: ({ row }) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
-          <span>{row.name}</span>
-          <Chip
-            label={row.status}
-            size="small"
-            color={STATUS_COLORS[row.status] ?? 'default'}
-            sx={{ fontSize: '0.65rem', height: 20 }}
-          />
-        </Box>
-      ),
+      renderCell: ({ row }) => <span>{row.name}</span>,
     },
     { field: 'department', headerName: 'Department', width: 220 },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 130,
+      renderCell: ({ row }) => (
+        <Chip
+          label={row.status}
+          size="small"
+          color={STATUS_COLORS[row.status] ?? 'default'}
+          sx={{ fontSize: '0.65rem', height: 20 }}
+        />
+      ),
+    },
+    {
+      field: 'roleKey',
+      headerName: 'Role',
+      width: 150,
+      valueGetter: (_value, row) => roleNames.get(row.roleKey ?? '') ?? roleLabel(row.roleKey),
+      renderCell: ({ row }) => {
+        const name = roleNames.get(row.roleKey ?? '') ?? roleLabel(row.roleKey);
+        return name ? <span>{name}</span> : <Box component="span" sx={{ color: 'text.disabled' }}>—</Box>;
+      },
+    },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -71,7 +89,7 @@ export function AccountsShell({ rows, total, page, pageSize, roles, canManage, i
       renderCell: ({ row }) => {
         if (!canManage) return null;
         return row.accountId ? (
-          <Tooltip title={`Manage Account${row.roleKey ? ` (${row.roleKey.replace('_', ' ')})` : ''}`}>
+          <Tooltip title={`Manage Account${row.roleKey ? ` (${roleNames.get(row.roleKey) ?? roleLabel(row.roleKey)})` : ''}`}>
             <IconButton size="small" onClick={() => setManageTarget(row)}>
               <ManageAccounts sx={{ fontSize: 16 }} />
             </IconButton>
