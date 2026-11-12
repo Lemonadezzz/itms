@@ -33,7 +33,7 @@ export async function createSupplier(formData: unknown): Promise<ActionResult<st
   const supplier = await Supplier.create({ ...rest, categories: parseCategories(rawCats) });
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'create', description: `Created supplier ${supplier.supplierName}`, relatedModel: 'Supplier', relatedId: supplier._id.toString() });
-  revalidatePath('/suppliers');
+  revalidatePath('/assets/suppliers');
   return { success: true, data: supplier._id.toString() };
 }
 
@@ -50,7 +50,7 @@ export async function updateSupplier(id: string, formData: unknown): Promise<Act
   if (!supplier) return { success: false, error: 'Supplier not found' };
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'update', description: `Updated supplier ${supplier.supplierName}`, relatedModel: 'Supplier', relatedId: id });
-  revalidatePath('/suppliers');
+  revalidatePath('/assets/suppliers');
   return { success: true, data: undefined };
 }
 
@@ -62,6 +62,6 @@ export async function deleteSupplier(id: string): Promise<ActionResult> {
   const supplier = await Supplier.findByIdAndDelete(id);
   const { userId, userName } = await getActor();
   if (supplier) await writeLog({ userId, userName, action: 'delete', description: `Deleted supplier ${supplier.supplierName}`, relatedModel: 'Supplier', relatedId: id });
-  revalidatePath('/suppliers');
+  revalidatePath('/assets/suppliers');
   return { success: true, data: undefined };
 }

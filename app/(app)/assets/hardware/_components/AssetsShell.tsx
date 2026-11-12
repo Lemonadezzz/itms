@@ -4,7 +4,11 @@ import { useState, useTransition, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Box, Button, Stack, Snackbar, Alert } from '@mui/material';
 import { Add } from '@mui/icons-material';
-import type { GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
+import type {
+  GridFilterModel,
+  GridPaginationModel,
+  GridSortModel,
+} from '@mui/x-data-grid';
 import { AssetTable } from '@/components/assets/AssetTable';
 import { AssetFiltersBar } from './AssetFiltersBar';
 import { AssetFormDialog } from './AssetFormDialog';
@@ -25,6 +29,16 @@ interface Props {
   employees: { _id: string; employeeName: string }[];
 }
 
+function parseFilterModel(raw: string | null): GridFilterModel {
+  if (!raw) return { items: [] };
+  try {
+    const parsed = JSON.parse(raw) as GridFilterModel;
+    return parsed && Array.isArray(parsed.items) ? parsed : { items: [] };
+  } catch {
+    return { items: [] };
+  }
+}
+
 export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, employees }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -39,6 +53,10 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   const [errorMsg, setErrorMsg]         = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AssetRow | null>(null);
   const [localRows, setLocalRows]       = useState<AssetRow[]>(rows);
+  // The grid owns its filter state; this only seeds it from the URL on mount.
+  const [initialFilterModel] = useState<GridFilterModel>(() =>
+    parseFilterModel(searchParams.get('filter'))
+  );
 
   // Keep the optimistic copy in sync whenever the server sends fresh data.
   useEffect(() => {
@@ -49,6 +67,14 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([k, v]) => params.set(k, String(v)));
+    startTransition(() => router.push(`${pathname}?${params.toString()}`));
+  }
+
+  function handleFilterChange(model: GridFilterModel) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (model.items.length > 0) params.set('filter', JSON.stringify(model));
+    else params.delete('filter');
+    params.set('page', '0');
     startTransition(() => router.push(`${pathname}?${params.toString()}`));
   }
 
@@ -79,8 +105,11 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           rows={localRows}
           rowCount={total}
           pagination={{ page, pageSize, sortField, sortDir: sortDir as 'asc' | 'desc' }}
+          initialFilterModel={initialFilterModel}
+          filterParam={searchParams.get('filter') ?? ''}
           onPaginationChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
           onSortChange={(m: GridSortModel) => { if (m[0]) pushParams({ sortField: m[0].field, sortDir: m[0].sort ?? 'asc', page: 0 }); }}
+          onFilterChange={handleFilterChange}
           onDetail={(row) => setDetailTarget(row)}
           onEdit={can('assets.manage') ? (row) => setEditTarget(row) : undefined}
           onDelete={can('assets.delete') ? handleDelete : undefined}

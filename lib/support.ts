@@ -26,7 +26,7 @@ export const AFFECTED_ITEM_COLORS: Record<string, string> = {
 
 /** Statuses a technician may move a ticket to, keyed by its current status. */
 export const TECHNICIAN_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-  Open: ['In Progress', 'Pending', 'Resolved'],
+  Open: ['In Progress', 'Pending'],
   'In Progress': ['Pending', 'Resolved'],
   Pending: ['In Progress', 'Resolved'],
   Resolved: ['Closed'],

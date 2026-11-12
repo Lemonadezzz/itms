@@ -29,7 +29,7 @@ export async function createSoftware(formData: unknown): Promise<ActionResult<st
   const sw = await Software.create(parsed.data);
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'create', description: `Created software ${sw.softwareName}`, relatedModel: 'Software', relatedId: sw._id.toString() });
-  revalidatePath('/software');
+  revalidatePath('/assets/software');
   return { success: true, data: sw._id.toString() };
 }
 
@@ -59,7 +59,7 @@ export async function updateSoftware(id: string, formData: unknown): Promise<Act
   if (!sw) return { success: false, error: 'Software not found' };
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'update', description: `Updated software ${sw.softwareName}`, relatedModel: 'Software', relatedId: id });
-  revalidatePath('/software');
+  revalidatePath('/assets/software');
   return { success: true, data: undefined };
 }
 
@@ -74,6 +74,6 @@ export async function deleteSoftware(id: string): Promise<ActionResult> {
     const { userId, userName } = await getActor();
     await writeLog({ userId, userName, action: 'delete', description: `Deleted software ${sw.softwareName}`, relatedModel: 'Software', relatedId: id });
   }
-  revalidatePath('/software');
+  revalidatePath('/assets/software');
   return { success: true, data: undefined };
 }

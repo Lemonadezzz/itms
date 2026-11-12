@@ -30,6 +30,17 @@ export type AssetRow = {
   hasActiveContract?: boolean;
 };
 
+export type AssetFilterItem = {
+  field: string;
+  operator: string;
+  value?: string | number | string[] | null;
+};
+
+export type AssetFilterModel = {
+  items: AssetFilterItem[];
+  logicOperator?: 'and' | 'or';
+};
+
 export type PaginationParams = {
   page: number;
   pageSize: 50 | 75 | 100;

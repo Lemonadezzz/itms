@@ -85,7 +85,7 @@ export async function createContract(formData: unknown): Promise<ActionResult<st
     relatedId: contract._id.toString(),
   });
 
-  revalidatePath('/contracts');
+  revalidatePath('/assets/contracts');
   return { success: true, data: contract._id.toString() };
 }
 
@@ -128,7 +128,7 @@ export async function updateContract(id: string, formData: unknown): Promise<Act
     relatedId: id,
   });
 
-  revalidatePath('/contracts');
+  revalidatePath('/assets/contracts');
   return { success: true, data: undefined };
 }
 
@@ -155,9 +155,9 @@ export async function deleteContract(id: string): Promise<ActionResult> {
     relatedId: id,
   });
 
-  revalidatePath('/contracts');
-  revalidatePath('/end-user-management');
-  revalidatePath('/assets');
+  revalidatePath('/assets/contracts');
+  revalidatePath('/assets/end-user-management');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 
@@ -222,8 +222,8 @@ export async function endContract(
     relatedId: id,
   });
 
-  revalidatePath('/contracts');
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/contracts');
+  revalidatePath('/assets/end-user-management');
   return { success: true, data: { endedAt: endedAt.toISOString() } };
 }
 

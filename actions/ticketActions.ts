@@ -21,7 +21,7 @@ import {
 import type { ActionResult } from '@/types';
 
 const MY_TICKETS_PATH = '/support/my-tickets';
-const QUEUE_PATH = '/tickets';
+const QUEUE_PATH = '/support/tickets';
 
 async function nextTicketNumber(): Promise<string> {
   const counter = await Counter.findOneAndUpdate(

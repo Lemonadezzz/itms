@@ -2,7 +2,12 @@ import { connectDB } from '@/lib/db/mongoose';
 import { Asset, IAsset } from '@/models/Asset';
 import { Contract } from '@/models/Contract';
 import { getContractLifecycleStatus } from '@/lib/contracts';
-import type { AssetRow, AssetAssignmentHistory } from '@/types';
+import type {
+  AssetAssignmentHistory,
+  AssetFilterItem,
+  AssetFilterModel,
+  AssetRow,
+} from '@/types';
 import type { PipelineStage, Types } from 'mongoose';
 
 export type AssetFilters = {
@@ -11,7 +16,110 @@ export type AssetFilters = {
   status?: string;
   location?: string;
   assignedToId?: string;
+  /** Column filter model from the hardware DataGrid, applied server-side. */
+  filterModel?: AssetFilterModel;
 };
+
+const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30.44;
+
+const FILTER_PATHS: Record<string, string> = {
+  assetCode: 'assetCode',
+  assetName: 'assetName',
+  assetType: 'assetType',
+  ageInMonths: '__ageInMonths',
+  location: 'location',
+  costCenter: 'costCenter',
+  acquisitionCost: 'acquisitionCost',
+  assignedTo: '__assignedEmployee.employeeName',
+  status: 'status',
+};
+
+const SORT_PATHS: Record<string, string> = {
+  ageInMonths: '__ageInMonths',
+  assignedTo: '__assignedEmployee.employeeName',
+};
+
+const NUMERIC_FIELDS = new Set(['ageInMonths', 'acquisitionCost']);
+
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function toNumber(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Translate one DataGrid filter item into a Mongo match condition. */
+function buildFilterCondition(item: AssetFilterItem): Record<string, unknown> | null {
+  const path = FILTER_PATHS[item.field];
+  if (!path) return null;
+
+  const { operator, value } = item;
+
+  if (operator === 'isEmpty') {
+    return { [path]: { $in: [null, ''] } };
+  }
+  if (operator === 'isNotEmpty') {
+    return {
+      $and: [
+        { [path]: { $exists: true } },
+        { [path]: { $ne: null } },
+        { [path]: { $ne: '' } },
+      ],
+    };
+  }
+  if (operator === 'isAnyOf') {
+    const values = Array.isArray(value) ? value : value == null || value === '' ? [] : [value];
+    if (values.length === 0) return null;
+    return {
+      [path]: {
+        $in: NUMERIC_FIELDS.has(item.field)
+          ? values.map(toNumber).filter((v): v is number => v !== null)
+          : values,
+      },
+    };
+  }
+
+  if (value === undefined || value === null || value === '') return null;
+
+  if (NUMERIC_FIELDS.has(item.field)) {
+    const numeric = toNumber(value);
+    if (numeric === null) return null;
+    switch (operator) {
+      case '=':
+      case 'equals':
+        return { [path]: numeric };
+      case '!=':
+        return { [path]: { $ne: numeric } };
+      case '>':
+        return { [path]: { $gt: numeric } };
+      case '>=':
+        return { [path]: { $gte: numeric } };
+      case '<':
+        return { [path]: { $lt: numeric } };
+      case '<=':
+        return { [path]: { $lte: numeric } };
+      default:
+        return null;
+    }
+  }
+
+  const text = String(value);
+  switch (operator) {
+    case 'contains':
+      return { [path]: { $regex: escapeRegex(text), $options: 'i' } };
+    case 'equals':
+    case '=':
+      return { [path]: { $regex: `^${escapeRegex(text)}$`, $options: 'i' } };
+    case '!=':
+      return { [path]: { $not: { $regex: `^${escapeRegex(text)}$`, $options: 'i' } } };
+    case 'startsWith':
+      return { [path]: { $regex: `^${escapeRegex(text)}`, $options: 'i' } };
+    case 'endsWith':
+      return { [path]: { $regex: `${escapeRegex(text)}$`, $options: 'i' } };
+    default:
+      return null;
+  }
+}
 
 type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
   _id: Types.ObjectId;
@@ -82,21 +190,30 @@ export async function getAssets({
   if (filters.location)   query.location = { $regex: filters.location, $options: 'i' };
   if (filters.assignedToId) query['currentAssignment.employeeId'] = filters.assignedToId;
 
+  // Column filters from the DataGrid are applied in the aggregation below
+  // because some of them (Age, Assigned To) only exist after computation.
+  const filterConditions = (filters.filterModel?.items ?? [])
+    .map(buildFilterCondition)
+    .filter((condition): condition is Record<string, unknown> => condition !== null);
+
+  if (filterConditions.length > 0) {
+    const existing = (query.$and as Record<string, unknown>[] | undefined) ?? [];
+    query.$and =
+      filters.filterModel?.logicOperator === 'or'
+        ? [...existing, { $or: filterConditions }]
+        : [...existing, ...filterConditions];
+  }
+
   // Retired assets always sink to the bottom of the list, regardless of the
   // active sort. Status is the only source of truth — there is no delete flag.
   const safeSortField = /^[A-Za-z][A-Za-z0-9_.]*$/.test(sortField) ? sortField : 'createdAt';
+  const sortPath = SORT_PATHS[safeSortField] ?? safeSortField;
   const safeSortDir: 1 | -1 = sortDir === 'asc' ? 1 : -1;
-  const pipeline: PipelineStage[] = [
-    { $match: query },
-    {
-      $addFields: {
-        __statusRank: { $cond: [{ $eq: ['$status', 'Retired'] }, 1, 0] },
-      },
-    },
-    { $sort: { __statusRank: 1, [safeSortField]: safeSortDir } },
-    { $skip: page * pageSize },
-    { $limit: pageSize },
-    // Resolve the current assignee's name without a second query.
+  const nowForPipeline = new Date();
+
+  const basePipeline: PipelineStage[] = [
+    // Resolve the current assignee's name before filtering so the
+    // "Assigned To" filter can match on the employee name.
     {
       $lookup: {
         from: 'employees',
@@ -105,13 +222,38 @@ export async function getAssets({
         as: '__assignedEmployee',
       },
     },
-    { $unset: '__statusRank' },
+    {
+      $addFields: {
+        __statusRank: { $cond: [{ $eq: ['$status', 'Retired'] }, 1, 0] },
+        __ageInMonths: {
+          $cond: [
+            { $ifNull: ['$acquisitionDate', null] },
+            {
+              $floor: {
+                $divide: [{ $subtract: [nowForPipeline, '$acquisitionDate'] }, MS_PER_MONTH],
+              },
+            },
+            0,
+          ],
+        },
+      },
+    },
+    { $match: query },
   ];
 
-  const [docs, total] = await Promise.all([
-    Asset.aggregate(pipeline) as unknown as Promise<AggregateAsset[]>,
-    Asset.countDocuments(query),
+  const [docs, totalDocs] = await Promise.all([
+    Asset.aggregate([
+      ...basePipeline,
+      { $sort: { __statusRank: 1, [sortPath]: safeSortDir } },
+      { $skip: page * pageSize },
+      { $limit: pageSize },
+      { $unset: '__statusRank' },
+    ]) as unknown as Promise<AggregateAsset[]>,
+    Asset.aggregate([...basePipeline, { $count: 'count' }]) as unknown as Promise<
+      { count: number }[]
+    >,
   ]);
+  const total = totalDocs[0]?.count ?? 0;
 
   // Calculate age based on current date (not fixed reference)
   const now = Date.now();

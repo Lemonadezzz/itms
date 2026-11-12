@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import { getAssets } from '@/lib/data/assets';
 import { getEmployeeOptions } from '@/lib/data/employees';
 import { requirePageAccess } from '@/lib/access';
+import type { AssetFilterModel } from '@/types';
 import { AssetsShell } from './_components/AssetsShell';
 
 interface Props {
@@ -17,6 +18,16 @@ export default async function AssetsPage({ searchParams }: Props) {
   const sortField = sp.sortField ?? 'createdAt';
   const sortDir   = sp.sortDir   ?? 'desc';
 
+  let filterModel: AssetFilterModel | undefined;
+  if (sp.filter) {
+    try {
+      const parsed = JSON.parse(sp.filter) as AssetFilterModel;
+      if (Array.isArray(parsed?.items)) filterModel = parsed;
+    } catch {
+      filterModel = undefined;
+    }
+  }
+
   const [{ rows, total }, employees] = await Promise.all([
     getAssets({ page, pageSize, sortField, sortDir, filters: {
       search:       sp.search,
@@ -24,6 +35,7 @@ export default async function AssetsPage({ searchParams }: Props) {
       status:       sp.status,
       location:     sp.location,
       assignedToId: sp.assignedToId,
+      filterModel,
     }}),
     getEmployeeOptions(),
   ]);

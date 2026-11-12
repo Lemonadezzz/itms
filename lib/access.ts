@@ -52,7 +52,7 @@ export async function landingPath(): Promise<string> {
   const access = await getAccess();
   if (!access) return '/login';
   return hasPermission(access.permissions, permissionKey('assets', 'view'))
-    ? '/assets-overview'
+    ? '/assets/overview'
     : '/support/my-tickets';
 }
 

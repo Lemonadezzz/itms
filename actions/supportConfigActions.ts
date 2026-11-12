@@ -23,7 +23,7 @@ import type { ActionResult } from '@/types';
 const CONFIG_PATH = '/support/configuration';
 const KB_PATH = '/support/knowledge-base';
 const MY_TICKETS_PATH = '/support/my-tickets';
-const QUEUE_PATH = '/tickets';
+const QUEUE_PATH = '/support/tickets';
 
 async function ensureConfig() {
   let config = await SupportConfig.findOne({ key: 'default' });

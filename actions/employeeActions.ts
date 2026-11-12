@@ -46,7 +46,7 @@ export async function createEmployee(formData: unknown): Promise<ActionResult<st
   }
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'create', description: `Created employee ${emp.employeeName}`, relatedModel: 'Employee', relatedId: emp._id.toString() });
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   revalidatePath('/employees');
   return { success: true, data: emp._id.toString() };
 }
@@ -76,7 +76,7 @@ export async function updateEmployee(id: string, formData: unknown): Promise<Act
   if (!emp) return { success: false, error: 'Employee not found' };
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'update', description: `Updated employee ${emp.employeeName}`, relatedModel: 'Employee', relatedId: id });
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   revalidatePath('/employees');
   return { success: true, data: undefined };
 }
@@ -111,7 +111,7 @@ export async function deleteEmployee(id: string): Promise<ActionResult> {
   await Employee.findByIdAndDelete(id);
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'delete', description: `Deleted employee ${emp.employeeName}`, relatedModel: 'Employee', relatedId: id });
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   revalidatePath('/employees');
   return { success: true, data: undefined };
 }
@@ -177,7 +177,7 @@ export async function assignSoftwareToEmployee(
   await Employee.updateOne({ _id: employeeId }, { $addToSet: { softwareIds: sw._id } });
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'assign', description: `Assigned software ${sw.softwareName} to ${emp.employeeName}`, relatedModel: 'Employee', relatedId: employeeId });
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   revalidatePath('/employees');
   return { success: true, data: undefined };
 }
@@ -199,7 +199,7 @@ export async function removeSoftwareFromEmployee(
   await Employee.updateOne({ _id: employeeId }, { $pull: { softwareIds: softwareId } });
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'update', description: `Removed software ${sw?.softwareName ?? softwareId} from ${emp.employeeName}`, relatedModel: 'Employee', relatedId: employeeId });
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   revalidatePath('/employees');
   return { success: true, data: undefined };
 }
@@ -250,9 +250,9 @@ export async function offboardEmployee(employeeId: string, autoReturn?: boolean)
 
   await writeLog({ userId, userName, action: 'offboard', description: `Inactivated employee ${emp.employeeName} (returned ${assets.length} asset${assets.length > 1 ? 's' : ''})`, relatedModel: 'Employee', relatedId: employeeId });
 
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   revalidatePath('/employees');
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 
@@ -270,7 +270,7 @@ export async function reactivateEmployee(employeeId: string): Promise<ActionResu
   
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'reactivate', description: `Reactivated employee ${emp.employeeName}`, relatedModel: 'Employee', relatedId: employeeId });
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   revalidatePath('/employees');
   return { success: true, data: undefined };
 }

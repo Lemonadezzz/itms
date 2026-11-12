@@ -38,7 +38,7 @@ export async function createDepartment(formData: unknown): Promise<ActionResult<
   await writeLog({ userId, userName, action: 'create', description: `Created department ${dept.departmentName}`, relatedModel: 'Department', relatedId: dept._id.toString() });
   revalidatePath('/departments');
   revalidatePath('/employees');
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   return { success: true, data: dept._id.toString() };
 }
 
@@ -71,7 +71,7 @@ export async function updateDepartment(id: string, formData: unknown): Promise<A
   await writeLog({ userId, userName, action: 'update', description: `Updated department ${dept.departmentName}`, relatedModel: 'Department', relatedId: id });
   revalidatePath('/departments');
   revalidatePath('/employees');
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   return { success: true, data: undefined };
 }
 
@@ -97,6 +97,6 @@ export async function deleteDepartment(id: string): Promise<ActionResult> {
   await writeLog({ userId, userName, action: 'delete', description: `Deleted department ${dept.departmentName}`, relatedModel: 'Department', relatedId: id });
   revalidatePath('/departments');
   revalidatePath('/employees');
-  revalidatePath('/end-user-management');
+  revalidatePath('/assets/end-user-management');
   return { success: true, data: undefined };
 }

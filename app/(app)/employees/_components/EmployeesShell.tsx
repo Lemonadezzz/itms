@@ -6,7 +6,7 @@ import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Sna
 import { Add, Delete, Search, EditNote, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
-import { EmployeeDetailDialog } from '@/app/(app)/end-user-management/_components/EmployeeDetailDialog';
+import { EmployeeDetailDialog } from '@/app/(app)/assets/end-user-management/_components/EmployeeDetailDialog';
 import { OffboardEmployeeModal } from './OffboardEmployeeModal';
 import { deleteEmployee } from '@/actions/employeeActions';
 import { useCan } from '@/lib/useCan';

@@ -1,6 +1,14 @@
 'use client';
 
-import { DataGrid, GridColDef, GridPaginationModel, GridSortModel } from '@mui/x-data-grid';
+import { useEffect, useRef } from 'react';
+import {
+  DataGrid,
+  GridColDef,
+  GridFilterModel,
+  GridPaginationModel,
+  GridSortModel,
+  useGridApiRef,
+} from '@mui/x-data-grid';
 import { Chip, Box, IconButton, Tooltip, Button } from '@mui/material';
 import { Edit, Delete, DisplaySettings } from '@mui/icons-material';
 import type { AssetRow, PaginationParams } from '@/types';
@@ -38,8 +46,11 @@ interface AssetTableProps {
   rows: AssetRow[];
   rowCount: number;
   pagination: PaginationParams;
+  initialFilterModel: GridFilterModel;
+  filterParam: string;
   onPaginationChange: (m: GridPaginationModel) => void;
   onSortChange: (m: GridSortModel) => void;
+  onFilterChange: (m: GridFilterModel) => void;
   onDetail?: (row: AssetRow) => void;
   onEdit?:   (row: AssetRow) => void;
   onDelete?: (row: AssetRow) => void;
@@ -48,9 +59,22 @@ interface AssetTableProps {
 }
 
 export function AssetTable({
-  rows, rowCount, pagination, onPaginationChange, onSortChange,
+  rows, rowCount, pagination, initialFilterModel, filterParam,
+  onPaginationChange, onSortChange, onFilterChange,
   onDetail, onEdit, onDelete, onConfirmDelivery, loading,
 }: AssetTableProps) {
+  const apiRef = useGridApiRef();
+  const prevFilterParam = useRef(filterParam);
+
+  // Reset the grid filter when the URL no longer carries one (e.g. clicking the
+  // sidebar's Hardware link from a filtered view).
+  useEffect(() => {
+    if (prevFilterParam.current && !filterParam) {
+      apiRef.current?.setFilterModel({ items: [] });
+    }
+    prevFilterParam.current = filterParam;
+  }, [filterParam, apiRef]);
+
   const safeRows = Array.isArray(rows) ? rows : [];
   const columns: GridColDef<AssetRow>[] = [
     { field: 'assetCode', headerName: 'Code',     width: 100 },
@@ -63,7 +87,7 @@ export function AssetTable({
       ),
     },
     {
-      field: 'ageInMonths', headerName: 'Age', width: 110,
+      field: 'ageInMonths', headerName: 'Age', width: 110, type: 'number',
       renderCell: ({ value }) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
           <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: getAgeColor(value as number), flexShrink: 0 }} />
@@ -76,7 +100,7 @@ export function AssetTable({
       renderCell: ({ value }) => value || '-',
     },
     {
-      field: 'acquisitionCost', headerName: 'Cost', width: 130,
+      field: 'acquisitionCost', headerName: 'Cost', width: 130, type: 'number',
       renderCell: ({ value }) => <span style={{ fontSize: '0.72rem' }}>{phpFormat(value as number)}</span>,
     },
     { field: 'assignedTo',     headerName: 'Assigned To', width: 140 },
@@ -123,6 +147,7 @@ export function AssetTable({
 
   return (
     <DataGrid
+      apiRef={apiRef}
       rows={safeRows}
       columns={columns}
       getRowId={(r) => r._id}
@@ -130,12 +155,15 @@ export function AssetTable({
       loading={loading}
       paginationMode="server"
       sortingMode="server"
+      filterMode="server"
+      initialState={{ filter: { filterModel: initialFilterModel } }}
       checkboxSelection
       onRowSelectionModelChange={() => {}}
       pageSizeOptions={[50, 75, 100]}
       paginationModel={{ page: pagination.page, pageSize: pagination.pageSize }}
       onPaginationModelChange={onPaginationChange}
       onSortModelChange={onSortChange}
+      onFilterModelChange={onFilterChange}
       sx={{ border: 0, flex: 1 }}
     />
   );

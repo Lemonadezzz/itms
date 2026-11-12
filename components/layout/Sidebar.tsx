@@ -25,13 +25,13 @@ const COLLAPSED = 60;
 const ICON_COL = 36;
 
 const assetChildren = [
-  { text: 'Overview', href: '/assets-overview', icon: <Dashboard fontSize="small" />, permission: 'assets.view' },
-  { text: 'Hardware', href: '/assets', icon: <Inventory fontSize="small" />, permission: 'assets.view' },
-  { text: 'Software', href: '/software', icon: <Computer fontSize="small" />, permission: 'software.view' },
-  { text: 'End-Users', href: '/end-user-management', icon: <People fontSize="small" />, permission: 'employees.view' },
-  { text: 'Contracts', href: '/contracts', icon: <Description fontSize="small" />, permission: 'contracts.view' },
-  { text: 'Suppliers', href: '/suppliers', icon: <Business fontSize="small" />, permission: 'suppliers.view' },
-  { text: 'Logs', href: '/logs', icon: <History fontSize="small" />, permission: 'logs.view' },
+  { text: 'Overview', href: '/assets/overview', icon: <Dashboard fontSize="small" />, permission: 'assets.view' },
+  { text: 'Hardware', href: '/assets/hardware', icon: <Inventory fontSize="small" />, permission: 'assets.view' },
+  { text: 'Software', href: '/assets/software', icon: <Computer fontSize="small" />, permission: 'software.view' },
+  { text: 'End-Users', href: '/assets/end-user-management', icon: <People fontSize="small" />, permission: 'employees.view' },
+  { text: 'Contracts', href: '/assets/contracts', icon: <Description fontSize="small" />, permission: 'contracts.view' },
+  { text: 'Suppliers', href: '/assets/suppliers', icon: <Business fontSize="small" />, permission: 'suppliers.view' },
+  { text: 'Logs', href: '/assets/logs', icon: <History fontSize="small" />, permission: 'logs.view' },
 ];
 
 const employeeChildren = [
@@ -42,7 +42,7 @@ const employeeChildren = [
 const supportChildren = [
   { text: 'My Tickets', href: '/support/my-tickets', icon: <ConfirmationNumber fontSize="small" />, permission: undefined },
   { text: 'My Devices & Software', href: '/support/my-devices', icon: <DevicesOther fontSize="small" />, permission: undefined },
-  { text: 'Tickets', href: '/tickets', icon: <SupportAgent fontSize="small" />, permission: 'tickets.view' },
+  { text: 'Tickets', href: '/support/tickets', icon: <SupportAgent fontSize="small" />, permission: 'tickets.view' },
   { text: 'Knowledge Base', href: '/support/knowledge-base', icon: <MenuBook fontSize="small" />, permission: 'knowledge.view' },
   { text: 'Reports & Analytics', href: '/support/reports', icon: <Insights fontSize="small" />, permission: 'reports.view' },
   { text: 'Support Configuration', href: '/support/configuration', icon: <Tune fontSize="small" />, permission: 'support.manage' },
@@ -55,8 +55,6 @@ const accessChildren = [
 ];
 
 function isActive(pathname: string, href: string) {
-  if (href === '/assets-overview') return pathname === '/assets-overview';
-  if (href === '/assets') return pathname === '/assets' || pathname.startsWith('/assets/');
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -90,8 +88,7 @@ export function Sidebar() {
   const visibleEmployees = employeeChildren.filter((item) => canView(item.permission));
   const visibleSupport = supportChildren.filter((item) => canView(item.permission));
   const visibleAccess = accessChildren.filter((item) => canView(item.permission));
-  const assetsActive =
-    pathname === '/assets-overview' || visibleAssets.some((item) => isActive(pathname, item.href));
+  const assetsActive = visibleAssets.some((item) => isActive(pathname, item.href));
   const employeesActive = visibleEmployees.some((item) => isActive(pathname, item.href));
   const supportActive = visibleSupport.some((item) => isActive(pathname, item.href));
   const accessActive = visibleAccess.some((item) => isActive(pathname, item.href));
@@ -156,7 +153,7 @@ export function Sidebar() {
           {/* Assets category — the label links to the Overview page */}
           {visibleAssets.length > 0 && (
             <Tooltip title={open ? '' : 'Assets'} placement="right" arrow>
-              <ListItemButton component="div" onClick={() => router.push('/assets-overview')} sx={{ ...itemSx, cursor: 'pointer' }}>
+              <ListItemButton component="div" onClick={() => router.push('/assets/overview')} sx={{ ...itemSx, cursor: 'pointer' }}>
                 <ListItemIcon sx={iconSx(assetsActive)}>
                   <Inventory fontSize="small" />
                 </ListItemIcon>

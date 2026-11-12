@@ -1,10 +1,14 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Stack, TextField, MenuItem, InputAdornment, Chip } from '@mui/material';
-import { Search } from '@mui/icons-material';
+import {
+  Alert, Box, Button, Stack, TextField, MenuItem, InputAdornment, Chip, Snackbar,
+} from '@mui/material';
+import { DeleteSweep, Search } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { clearLogs } from '@/actions/logActions';
 import type { LogRow } from '@/lib/data/logs';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -61,13 +65,17 @@ interface Props {
   total: number;
   page: number;
   pageSize: 50 | 75 | 100;
+  isDeveloper: boolean;
 }
 
-export function LogsShell({ rows, total, page, pageSize }: Props) {
+export function LogsShell({ rows, total, page, pageSize, isDeveloper }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -97,7 +105,7 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 1.5 }} suppressHydrationWarning>
-      <Stack direction="row" gap={1}>
+      <Stack direction="row" gap={1} alignItems="center">
         <TextField
           size="small" placeholder="Search…"
           defaultValue={searchParams.get('search') ?? ''}
@@ -117,6 +125,19 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
             <MenuItem key={a} value={a}>{ACTION_LABELS[a] ?? a}</MenuItem>
           ))}
         </TextField>
+        <Box sx={{ flex: 1 }} />
+        {isDeveloper && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteSweep />}
+            onClick={() => setConfirmClear(true)}
+            disabled={total === 0}
+          >
+            Clear Logs
+          </Button>
+        )}
       </Stack>
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
@@ -130,6 +151,47 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
           sx={{ border: 0, flex: 1 }}
         />
       </Box>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Clear all logs?"
+        message="This permanently deletes every activity log. Only a Developer can do this."
+        confirmLabel="Clear Logs"
+        onConfirm={async () => {
+          const result = await clearLogs();
+          if (!result.success) {
+            setError(result.error);
+            return false;
+          }
+          setConfirmClear(false);
+          setNotice(`${result.data.deleted} log${result.data.deleted === 1 ? '' : 's'} cleared.`);
+          router.refresh();
+          return true;
+        }}
+        onCancel={() => setConfirmClear(false)}
+      />
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={5000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setError(null)} sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!notice}
+        autoHideDuration={4000}
+        onClose={() => setNotice(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setNotice(null)} sx={{ width: '100%' }}>
+          {notice}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

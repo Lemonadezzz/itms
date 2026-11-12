@@ -54,7 +54,7 @@ export async function createAsset(formData: unknown): Promise<ActionResult<strin
     const { userId, userName } = await getActor();
     const actionName = isPending ? 'PRE_DELIVERY_INTAKE' : 'create';
     await writeLog({ userId, userName, action: actionName as any, description: `Created asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: asset._id.toString() });
-    revalidatePath('/assets');
+    revalidatePath('/assets/hardware');
     return { success: true, data: asset._id.toString() };
   } catch (err: any) {
     if (err.code === 11000 && err.keyPattern?.assetCode) {
@@ -94,7 +94,7 @@ export async function updateAsset(id: string, formData: unknown): Promise<Action
     if (!asset) return { success: false, error: 'Asset not found' };
     const { userId, userName } = await getActor();
     await writeLog({ userId, userName, action: 'update', description: `Updated asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: id });
-    revalidatePath('/assets');
+    revalidatePath('/assets/hardware');
     return { success: true, data: undefined };
   } catch (err: any) {
     if (err.code === 11000 && err.keyPattern?.assetCode) {
@@ -140,7 +140,7 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
 
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'assign', description: `Assigned ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, toEmployee: employeeName });
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 
@@ -176,7 +176,7 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
 
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'return', description: `Returned asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: currentEmployeeName });
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 
@@ -202,7 +202,7 @@ export async function deleteAsset(id: string): Promise<ActionResult> {
   await Asset.findByIdAndDelete(id);
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'delete', description: `Deleted asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: id });
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 export async function clearAssetLog(assetId: string): Promise<ActionResult<{ deleted: number }>> {
@@ -238,7 +238,7 @@ export async function clearAssetLog(assetId: string): Promise<ActionResult<{ del
     assetCode: asset.assetCode,
   });
 
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: { deleted: result.deletedCount ?? 0 } };
 }
 
@@ -257,7 +257,7 @@ export async function confirmDelivery(assetId: string, acquisitionDate: string):
 
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'DELIVERY_CONFIRMED' as any, description: `Delivery confirmed for asset ${asset.assetCode}`, relatedModel: 'Asset', relatedId: assetId });
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 
@@ -297,7 +297,7 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
 
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'ASSET_TRANSFER', description: `Transferred asset ${asset.assetCode} to ${employeeName}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, fromEmployee: currentEmployeeName, toEmployee: employeeName });
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 
@@ -314,7 +314,7 @@ export async function restoreAsset(assetId: string): Promise<ActionResult> {
 
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'ASSET_RESTORE', description: `Restored asset ${asset.assetCode} — returned to In Stock`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode });
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
 
@@ -354,6 +354,6 @@ export async function retireAsset(assetId: string, reason: string): Promise<Acti
 
   const { userId, userName } = await getActor();
   await writeLog({ userId, userName, action: 'ASSET_RETIRE', description: `Retired asset ${asset.assetCode}: ${reason}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, reason });
-  revalidatePath('/assets');
+  revalidatePath('/assets/hardware');
   return { success: true, data: undefined };
 }
