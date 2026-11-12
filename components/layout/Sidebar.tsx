@@ -11,9 +11,11 @@ import {
 } from '@mui/material';
 import {
   Dashboard, Inventory, People, ConfirmationNumber,
-  Computer, Business, Calculate, History, Description,
+  Computer, Business, History, Description,
   ChevronLeft, Menu, LightMode, DarkMode, Logout, Settings,
   ExpandLess, ExpandMore, ManageAccounts, Badge, Apartment,
+  AdminPanelSettings, Group, VpnKey, SupportAgent, MenuBook, Insights, Tune,
+  DevicesOther,
 } from '@mui/icons-material';
 import { useColorMode } from '@/theme/ThemeProvider';
 import { ProfileDialog } from './ProfileDialog';
@@ -23,23 +25,33 @@ const COLLAPSED = 60;
 const ICON_COL = 36;
 
 const assetChildren = [
-  { text: 'Overview', href: '/assets-overview', icon: <Dashboard fontSize="small" /> },
-  { text: 'Hardware', href: '/assets', icon: <Inventory fontSize="small" /> },
-  { text: 'Software', href: '/software', icon: <Computer fontSize="small" /> },
-  { text: 'End-Users', href: '/end-user-management', icon: <People fontSize="small" /> },
-  { text: 'Contracts', href: '/contracts', icon: <Description fontSize="small" /> },
-  { text: 'Logs', href: '/logs', icon: <History fontSize="small" /> },
+  { text: 'Overview', href: '/assets-overview', icon: <Dashboard fontSize="small" />, permission: 'assets.view' },
+  { text: 'Hardware', href: '/assets', icon: <Inventory fontSize="small" />, permission: 'assets.view' },
+  { text: 'Software', href: '/software', icon: <Computer fontSize="small" />, permission: 'software.view' },
+  { text: 'End-Users', href: '/end-user-management', icon: <People fontSize="small" />, permission: 'employees.view' },
+  { text: 'Contracts', href: '/contracts', icon: <Description fontSize="small" />, permission: 'contracts.view' },
+  { text: 'Suppliers', href: '/suppliers', icon: <Business fontSize="small" />, permission: 'suppliers.view' },
+  { text: 'Logs', href: '/logs', icon: <History fontSize="small" />, permission: 'logs.view' },
 ];
 
 const employeeChildren = [
-  { text: 'Employees', href: '/employees', icon: <Badge fontSize="small" /> },
-  { text: 'Departments', href: '/departments', icon: <Apartment fontSize="small" /> },
+  { text: 'Employees', href: '/employees', icon: <Badge fontSize="small" />, permission: 'employees.view' },
+  { text: 'Departments', href: '/departments', icon: <Apartment fontSize="small" />, permission: 'departments.view' },
 ];
 
-const navItems = [
-  { text: 'Tickets', href: '/tickets', icon: <ConfirmationNumber fontSize="small" /> },
-  { text: 'Suppliers', href: '/suppliers', icon: <Business fontSize="small" /> },
-  { text: 'Calculator', href: '/calculator', icon: <Calculate fontSize="small" /> },
+const supportChildren = [
+  { text: 'My Tickets', href: '/support/my-tickets', icon: <ConfirmationNumber fontSize="small" />, permission: undefined },
+  { text: 'My Devices & Software', href: '/support/my-devices', icon: <DevicesOther fontSize="small" />, permission: undefined },
+  { text: 'Tickets', href: '/tickets', icon: <SupportAgent fontSize="small" />, permission: 'tickets.view' },
+  { text: 'Knowledge Base', href: '/support/knowledge-base', icon: <MenuBook fontSize="small" />, permission: 'knowledge.view' },
+  { text: 'Reports & Analytics', href: '/support/reports', icon: <Insights fontSize="small" />, permission: 'reports.view' },
+  { text: 'Support Configuration', href: '/support/configuration', icon: <Tune fontSize="small" />, permission: 'support.manage' },
+];
+
+const accessChildren = [
+  { text: 'User Accounts', href: '/access-management/user-accounts', icon: <Group fontSize="small" />, permission: 'access.view' },
+  { text: 'Roles', href: '/access-management/roles', icon: <AdminPanelSettings fontSize="small" />, permission: 'access.view' },
+  { text: 'Permissions', href: '/access-management/permissions', icon: <VpnKey fontSize="small" />, permission: 'access.view' },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -63,15 +75,26 @@ export function Sidebar() {
   const [open, setOpen] = useState(true);
   const [assetsOpen, setAssetsOpen] = useState(true);
   const [employeesOpen, setEmployeesOpen] = useState(true);
+  const [supportOpen, setSupportOpen] = useState(true);
+  const [accessOpen, setAccessOpen] = useState(true);
   const [profileOpen, setProfile] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { toggle, mode } = useColorMode();
   const { data: session } = useSession();
   const width = open ? EXPANDED : COLLAPSED;
+  const permissions = session?.user?.permissions;
+  // A missing permission list means a legacy token: show everything until it refreshes.
+  const canView = (permission?: string) => !permission || !permissions || permissions.includes(permission);
+  const visibleAssets = assetChildren.filter((item) => canView(item.permission));
+  const visibleEmployees = employeeChildren.filter((item) => canView(item.permission));
+  const visibleSupport = supportChildren.filter((item) => canView(item.permission));
+  const visibleAccess = accessChildren.filter((item) => canView(item.permission));
   const assetsActive =
-    pathname === '/assets-overview' || assetChildren.some((item) => isActive(pathname, item.href));
-  const employeesActive = employeeChildren.some((item) => isActive(pathname, item.href));
+    pathname === '/assets-overview' || visibleAssets.some((item) => isActive(pathname, item.href));
+  const employeesActive = visibleEmployees.some((item) => isActive(pathname, item.href));
+  const supportActive = visibleSupport.some((item) => isActive(pathname, item.href));
+  const accessActive = visibleAccess.some((item) => isActive(pathname, item.href));
 
   const userName = session?.user?.name ?? '—';
   const userEmail = session?.user?.email ?? '—';
@@ -131,6 +154,7 @@ export function Sidebar() {
         {/* Nav items */}
         <List dense disablePadding sx={{ mt: 0.5 }}>
           {/* Assets category — the label links to the Overview page */}
+          {visibleAssets.length > 0 && (
           <Tooltip title={open ? '' : 'Assets'} placement="right" arrow>
             <ListItemButton component="div" onClick={() => router.push('/assets-overview')} sx={{ ...itemSx, cursor: 'pointer' }}>
               <ListItemIcon sx={iconSx(assetsActive)}>
@@ -160,8 +184,9 @@ export function Sidebar() {
               )}
             </ListItemButton>
           </Tooltip>
+          )}
 
-          {(open ? assetsOpen : true) && assetChildren.map(({ text, href, icon }) => {
+          {(open ? assetsOpen : true) && visibleAssets.map(({ text, href, icon }) => {
             const active = isActive(pathname, href);
             return (
               <Tooltip key={href} title={open ? '' : text} placement="right" arrow>
@@ -196,6 +221,7 @@ export function Sidebar() {
           })}
 
           {/* Employee Management category */}
+          {visibleEmployees.length > 0 && (
           <Tooltip title={open ? '' : 'Employee Management'} placement="right" arrow>
             <ListItemButton component="div" onClick={() => setEmployeesOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
               <ListItemIcon sx={iconSx(employeesActive)}>
@@ -225,8 +251,9 @@ export function Sidebar() {
               )}
             </ListItemButton>
           </Tooltip>
+          )}
 
-          {(open ? employeesOpen : true) && employeeChildren.map(({ text, href, icon }) => {
+          {(open ? employeesOpen : true) && visibleEmployees.map(({ text, href, icon }) => {
             const active = isActive(pathname, href);
             return (
               <Tooltip key={href} title={open ? '' : text} placement="right" arrow>
@@ -260,25 +287,138 @@ export function Sidebar() {
             );
           })}
 
-          <Divider sx={{ my: 0.5 }} />
+          {/* IT Support category */}
+          <Tooltip title={open ? '' : 'IT Support'} placement="right" arrow>
+            <ListItemButton component="div" onClick={() => setSupportOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
+              <ListItemIcon sx={iconSx(supportActive)}>
+                <SupportAgent fontSize="small" />
+              </ListItemIcon>
+              {open && (
+                <>
+                  <ListItemText
+                    primary="IT Support"
+                    primaryTypographyProps={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      noWrap: true,
+                      color: supportActive ? 'primary.main' : 'inherit',
+                    }}
+                    sx={{ ml: 0.5 }}
+                  />
+                  <IconButton
+                    size="small"
+                    aria-label={supportOpen ? 'Collapse IT Support' : 'Expand IT Support'}
+                    onClick={(e) => { e.stopPropagation(); setSupportOpen((v) => !v); }}
+                    sx={{ mr: 0.5, color: 'text.secondary' }}
+                  >
+                    {supportOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                  </IconButton>
+                </>
+              )}
+            </ListItemButton>
+          </Tooltip>
 
-          {navItems.map(({ text, href, icon }) => {
-            const active = pathname.startsWith(href);
+          {(open ? supportOpen : true) && visibleSupport.map(({ text, href, icon }) => {
+            const active = isActive(pathname, href);
             return (
               <Tooltip key={href} title={open ? '' : text} placement="right" arrow>
-                <ListItemButton component={Link} href={href} selected={active} sx={itemSx}>
-                  <ListItemIcon sx={iconSx(active)}>{icon}</ListItemIcon>
+                <ListItemButton
+                  component={Link}
+                  href={href}
+                  selected={active}
+                  sx={open ? { ...itemSx, pl: '44px' } : itemSx}
+                >
+                  <ListItemIcon
+                    sx={{
+                      ...iconSx(active),
+                      minWidth: open ? 24 : ICON_COL,
+                      width: open ? 24 : ICON_COL,
+                    }}
+                  >
+                    {icon}
+                  </ListItemIcon>
                   {open && (
                     <ListItemText
                       primary={text}
-                      primaryTypographyProps={{ fontSize: '0.8rem', fontWeight: active ? 600 : 400, noWrap: true }}
-                      sx={{ ml: 0.5 }}
+                      primaryTypographyProps={{
+                        fontSize: '0.75rem',
+                        fontWeight: active ? 600 : 400,
+                        noWrap: true,
+                      }}
                     />
                   )}
                 </ListItemButton>
               </Tooltip>
             );
           })}
+
+          {visibleAccess.length > 0 && (
+            <>
+              <Tooltip title={open ? '' : 'Access Management'} placement="right" arrow>
+                <ListItemButton component="div" onClick={() => setAccessOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
+                  <ListItemIcon sx={iconSx(accessActive)}>
+                    <AdminPanelSettings fontSize="small" />
+                  </ListItemIcon>
+                  {open && (
+                    <>
+                      <ListItemText
+                        primary="Access Management"
+                        primaryTypographyProps={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          noWrap: true,
+                          color: accessActive ? 'primary.main' : 'inherit',
+                        }}
+                        sx={{ ml: 0.5 }}
+                      />
+                      <IconButton
+                        size="small"
+                        aria-label={accessOpen ? 'Collapse Access Management' : 'Expand Access Management'}
+                        onClick={(e) => { e.stopPropagation(); setAccessOpen((v) => !v); }}
+                        sx={{ mr: 0.5, color: 'text.secondary' }}
+                      >
+                        {accessOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                      </IconButton>
+                    </>
+                  )}
+                </ListItemButton>
+              </Tooltip>
+
+              {(open ? accessOpen : true) && visibleAccess.map(({ text, href, icon }) => {
+                const active = isActive(pathname, href);
+                return (
+                  <Tooltip key={href} title={open ? '' : text} placement="right" arrow>
+                    <ListItemButton
+                      component={Link}
+                      href={href}
+                      selected={active}
+                      sx={open ? { ...itemSx, pl: '44px' } : itemSx}
+                    >
+                      <ListItemIcon
+                        sx={{
+                          ...iconSx(active),
+                          minWidth: open ? 24 : ICON_COL,
+                          width: open ? 24 : ICON_COL,
+                        }}
+                      >
+                        {icon}
+                      </ListItemIcon>
+                      {open && (
+                        <ListItemText
+                          primary={text}
+                          primaryTypographyProps={{
+                            fontSize: '0.75rem',
+                            fontWeight: active ? 600 : 400,
+                            noWrap: true,
+                          }}
+                        />
+                      )}
+                    </ListItemButton>
+                  </Tooltip>
+                );
+              })}
+            </>
+          )}
         </List>
 
         {/* Bottom user panel */}

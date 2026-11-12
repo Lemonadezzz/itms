@@ -13,6 +13,7 @@ import {
   getContractLifecycleStatus,
 } from '@/lib/contracts';
 import { writeLog } from '@/lib/activityLog';
+import { guardAction } from '@/lib/access';
 import { retireAsset, returnAsset } from '@/actions/assetActions';
 import { getEligibleLaptopEmployees } from '@/lib/data/contracts';
 import type { EligibleContractOption } from '@/lib/data/contracts';
@@ -31,6 +32,9 @@ async function hasContract(employeeId: string): Promise<boolean> {
 }
 
 export async function createContract(formData: unknown): Promise<ActionResult<string>> {
+  const guard = await guardAction('contracts', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateContractSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -86,6 +90,9 @@ export async function createContract(formData: unknown): Promise<ActionResult<st
 }
 
 export async function updateContract(id: string, formData: unknown): Promise<ActionResult> {
+  const guard = await guardAction('contracts', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = UpdateContractSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -126,6 +133,9 @@ export async function updateContract(id: string, formData: unknown): Promise<Act
 }
 
 export async function deleteContract(id: string): Promise<ActionResult> {
+  const guard = await guardAction('contracts', 'delete');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
 
   const contract = await Contract.findById(id);
@@ -158,6 +168,9 @@ export async function endContract(
   reason: string,
   disposition: ContractEndDisposition = 'retire'
 ): Promise<ActionResult<{ endedAt: string }>> {
+  const guard = await guardAction('contracts', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const trimmed = reason?.trim() ?? '';
   if (!trimmed) {
     return { success: false, error: 'Please provide a reason for ending the contract.' };

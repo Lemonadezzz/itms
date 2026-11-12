@@ -1,11 +1,13 @@
 import { Box, Typography } from '@mui/material';
 import { getEmployees } from '@/lib/data/employees';
 import { getDepartmentOptions } from '@/lib/data/departments';
+import { requirePageAccess } from '@/lib/access';
 import { EmployeesShell } from './_components/EmployeesShell';
 
 interface Props { searchParams: Promise<Record<string, string>>; }
 
 export default async function EmployeesPage({ searchParams }: Props) {
+  await requirePageAccess('employees');
   const sp       = await searchParams;
   const page     = Math.max(0, Number(sp.page ?? 0));
   const pageSize = ([50, 75, 100].includes(Number(sp.pageSize)) ? Number(sp.pageSize) : 50) as 50 | 75 | 100;

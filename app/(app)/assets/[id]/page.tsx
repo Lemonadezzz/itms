@@ -1,12 +1,14 @@
 import { notFound } from 'next/navigation';
 import { Box, Typography, Chip, Divider } from '@mui/material';
 import { getAssetById } from '@/lib/data/assets';
+import { requirePageAccess } from '@/lib/access';
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
 export default async function AssetDetailPage({ params }: Props) {
+  await requirePageAccess('assets');
   const { id } = await params;
   const asset = await getAssetById(id);
 

@@ -12,6 +12,7 @@ import { AssetDetailDialog } from './AssetDetailDialog';
 import { ConfirmDeliveryDialog } from './ConfirmDeliveryDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteAsset } from '@/actions/assetActions';
+import { useCan } from '@/lib/useCan';
 import type { AssetRow } from '@/types';
 
 interface Props {
@@ -29,6 +30,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const can = useCan();
 
   const [createOpen, setCreateOpen]     = useState(false);
   const [editTarget, setEditTarget]     = useState<AssetRow | null>(null);
@@ -65,9 +67,11 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 1.5, minHeight: 0 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <AssetFiltersBar employees={employees} onFilter={(f) => pushParams({ ...f, page: 0 })} />
+        {can('assets.manage') && (
         <Button variant="contained" size="small" startIcon={<Add />} onClick={() => setCreateOpen(true)}>
           Add Asset
         </Button>
+        )}
       </Stack>
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>
@@ -78,9 +82,9 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           onPaginationChange={(m: GridPaginationModel) => pushParams({ page: m.page, pageSize: m.pageSize })}
           onSortChange={(m: GridSortModel) => { if (m[0]) pushParams({ sortField: m[0].field, sortDir: m[0].sort ?? 'asc', page: 0 }); }}
           onDetail={(row) => setDetailTarget(row)}
-          onEdit={(row) => setEditTarget(row)}
-          onDelete={handleDelete}
-          onConfirmDelivery={(row) => setConfirmDeliveryTarget(row)}
+          onEdit={can('assets.manage') ? (row) => setEditTarget(row) : undefined}
+          onDelete={can('assets.delete') ? handleDelete : undefined}
+          onConfirmDelivery={can('assets.manage') ? (row) => setConfirmDeliveryTarget(row) : undefined}
         />
       </Box>
 
@@ -89,7 +93,7 @@ export function AssetsShell({ rows, total, page, pageSize, sortField, sortDir, e
           asset={detailTarget}
           employees={employees}
           onClose={() => setDetailTarget(null)}
-          onEdit={() => setEditTarget(detailTarget)}
+          onEdit={can('assets.manage') ? () => setEditTarget(detailTarget) : undefined}
         />
       )}
 

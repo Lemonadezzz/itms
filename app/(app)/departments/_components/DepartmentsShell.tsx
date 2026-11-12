@@ -11,6 +11,7 @@ import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { DepartmentFormDialog } from './DepartmentFormDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteDepartment } from '@/actions/departmentActions';
+import { useCan } from '@/lib/useCan';
 import type { DepartmentRow } from '@/lib/data/departments';
 
 interface Props {
@@ -25,6 +26,7 @@ export function DepartmentsShell({ rows, total, page, pageSize }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const can = useCan();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<DepartmentRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DepartmentRow | null>(null);
@@ -51,20 +53,27 @@ export function DepartmentsShell({ rows, total, page, pageSize }: Props) {
     {
       field: 'actions', headerName: 'Actions', width: 100, sortable: false,
       align: 'center', headerAlign: 'center',
-      renderCell: ({ row }) => (
+      renderCell: ({ row }) => {
+        if (!can('departments.manage') && !can('departments.delete')) return null;
+        return (
         <Box>
+          {can('departments.manage') && (
           <Tooltip title="Edit">
             <IconButton size="small" onClick={() => { setEditing(row); setDialogOpen(true); }}>
               <Edit sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
+          {can('departments.delete') && (
           <Tooltip title="Delete">
             <IconButton size="small" color="error" onClick={() => setDeleteTarget(row)}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
         </Box>
-      ),
+        );
+      },
     },
   ];
 
@@ -78,10 +87,12 @@ export function DepartmentsShell({ rows, total, page, pageSize }: Props) {
           InputProps={{ startAdornment: <InputAdornment position="start"><Search sx={{ fontSize: 16 }} /></InputAdornment> }}
           sx={{ width: 220 }}
         />
+        {can('departments.manage') && (
         <Button variant="contained" size="small" startIcon={<Add />}
           onClick={() => { setEditing(null); setDialogOpen(true); }}>
           Add Department
         </Button>
+        )}
       </Stack>
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>

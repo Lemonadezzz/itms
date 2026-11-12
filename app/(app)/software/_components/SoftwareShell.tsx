@@ -11,6 +11,7 @@ import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { SoftwareFormDialog } from './SoftwareFormDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteSoftware } from '@/actions/softwareActions';
+import { useCan } from '@/lib/useCan';
 import type { SoftwareRow } from '@/lib/data/software';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -47,6 +48,7 @@ export function SoftwareShell({ rows, total, page, pageSize, suppliers }: Props)
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const can = useCan();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SoftwareRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SoftwareRow | null>(null);
@@ -88,21 +90,28 @@ export function SoftwareShell({ rows, total, page, pageSize, suppliers }: Props)
     {
       field: 'actions', headerName: 'Actions', width: 100, sortable: false,
       align: 'center', headerAlign: 'center',
-      renderCell: ({ row }) => (
+      renderCell: ({ row }) => {
+        if (!can('software.manage') && !can('software.delete')) return null;
+        return (
         <Box>
+          {can('software.manage') && (
           <Tooltip title="Edit">
             <IconButton size="small" onClick={() => { setEditing(row); setDialogOpen(true); }}>
               <Edit sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
+          {can('software.delete') && (
           <Tooltip title="Delete">
             <IconButton size="small" color="error"
               onClick={() => setDeleteTarget(row)}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
         </Box>
-      ),
+        );
+      },
     },
   ];
 
@@ -116,10 +125,12 @@ export function SoftwareShell({ rows, total, page, pageSize, suppliers }: Props)
           InputProps={{ startAdornment: <InputAdornment position="start"><Search sx={{ fontSize: 16 }} /></InputAdornment> }}
           sx={{ width: 220 }}
         />
+        {can('software.manage') && (
         <Button variant="contained" size="small" startIcon={<Add />}
           onClick={() => { setEditing(null); setDialogOpen(true); }}>
           Add Software
         </Button>
+        )}
       </Stack>
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>

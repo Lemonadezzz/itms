@@ -10,6 +10,7 @@ import { ContractDetailDialog } from './ContractDetailDialog';
 import { ContractFormDialog } from './ContractFormDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteContract } from '@/actions/contractActions';
+import { useCan } from '@/lib/useCan';
 import type { ContractRow, EligibleContractOption } from '@/lib/data/contracts';
 
 interface Props {
@@ -29,6 +30,7 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const can = useCan();
 
   const [addOpen, setAddOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -100,20 +102,27 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
     },
     {
       field: 'actions', headerName: '', width: 110, sortable: false,
-      renderCell: ({ row }) => (
+      renderCell: ({ row }) => {
+        if (!can('contracts.manage') && !can('contracts.delete')) return null;
+        return (
         <Box>
+          {can('contracts.manage') && (
           <Tooltip title="Manage Contract">
             <IconButton size="small" onClick={() => setDetailTarget(row)}>
               <EditNote sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
+          {can('contracts.delete') && (
           <Tooltip title="Delete Contract">
             <IconButton size="small" color="error" onClick={() => setDeleteTarget(row)}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
         </Box>
-      ),
+        );
+      },
     },
   ];
 
@@ -127,9 +136,11 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
           InputProps={{ startAdornment: <InputAdornment position="start"><Search sx={{ fontSize: 16 }} /></InputAdornment> }}
           sx={{ width: 220 }}
         />
+        {can('contracts.manage') && (
         <Button variant="contained" size="small" startIcon={<Add />} onClick={() => setAddOpen(true)}>
           Add Contract
         </Button>
+        )}
       </Stack>
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>

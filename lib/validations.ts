@@ -4,6 +4,8 @@ import {
   SOFTWARE_LICENSE_TYPES,
   SOFTWARE_STATUSES,
 } from '@/lib/software';
+import { AFFECTED_ITEM_TYPES, TICKET_STATUSES, TICKET_TYPES } from '@/lib/support';
+import { ROLE_KEYS } from '@/lib/roles';
 
 /** Treat empty form values as an omitted optional field. */
 const emptyToUndefined = (value: unknown) =>
@@ -50,13 +52,47 @@ export const UpdateContractSchema = z.object({
 });
 
 export const CreateTicketSchema = z.object({
-  subject:        z.string().min(1),
-  details:        z.string().optional(),
-  reportedBy:     z.string().min(1),
-  reportedByName: z.string().min(1),
-  status:         z.enum(['Open', 'In-Progress', 'Closed']).default('Open'),
-  submittedDate:  z.coerce.date().default(() => new Date()),
-  resolutionDate: z.coerce.date().optional(),
+  subject:           z.string().trim().min(1, 'Subject is required'),
+  description:       z.string().trim().min(1, 'Description is required'),
+  type:              z.enum(TICKET_TYPES),
+  category:          z.string().trim().min(1, 'Category is required'),
+  requestedFor:      z.string().min(1, 'Requested for is required'),
+  affectedItemType:  z.enum(AFFECTED_ITEM_TYPES),
+  affectedAssetId:   z.preprocess(emptyToUndefined, z.string().optional()),
+  affectedSoftwareId: z.preprocess(emptyToUndefined, z.string().optional()),
+  affectedItemOther: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+});
+
+export const UpdateTicketStatusSchema = z.object({
+  status: z.enum(TICKET_STATUSES),
+});
+
+export const AssignTicketSchema = z.object({
+  technicianId: z.string().min(1, 'Select a technician'),
+});
+
+export const CreateKnowledgeArticleSchema = z.object({
+  title:    z.string().trim().min(1, 'Title is required'),
+  summary:  z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  content:  z.string().trim().min(1, 'Content is required'),
+  category: z.string().trim().min(1, 'Category is required'),
+  tags:     z.preprocess(emptyToUndefined, z.string().optional()),
+  status:   z.enum(['Draft', 'Published']),
+});
+
+export const UpdateKnowledgeArticleSchema = CreateKnowledgeArticleSchema;
+
+export const UpsertTicketCategorySchema = z.object({
+  key:       z.preprocess(emptyToUndefined, z.string().optional()),
+  label:     z.string().trim().min(1, 'Category name is required'),
+  appliesTo: z.enum(['Incident', 'Service Request', 'Both']),
+  active:    z.boolean().optional(),
+});
+
+export const UpsertKnowledgeCategorySchema = z.object({
+  key:    z.preprocess(emptyToUndefined, z.string().optional()),
+  label:  z.string().trim().min(1, 'Category name is required'),
+  active: z.boolean().optional(),
 });
 
 export const CreateSupplierSchema = z.object({
@@ -83,6 +119,25 @@ export const CreateSoftwareSchema = z.object({
   acquisitionDate: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
   renewalDate:     z.preprocess(emptyToUndefined, z.coerce.date().optional()),
   acquisitionCost: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+});
+
+export const CreateAccountSchema = z.object({
+  employeeId: z.preprocess(emptyToUndefined, z.string().optional()),
+  name:       z.string().trim().min(1, 'Name is required'),
+  email:      z.string().email('Enter a valid email address'),
+  password:   z.string().min(8, 'Password must be at least 8 characters'),
+  roleKey:    z.enum(ROLE_KEYS),
+});
+
+export const UpdateAccountSchema = z.object({
+  roleKey:  z.enum(ROLE_KEYS),
+  status:   z.enum(['Active', 'Inactive']),
+  password: z.preprocess(emptyToUndefined, z.string().min(8, 'Password must be at least 8 characters').optional()),
+});
+
+export const UpdateRolePermissionsSchema = z.object({
+  roleKey:     z.enum(ROLE_KEYS),
+  permissions: z.array(z.string()),
 });
 
 export type CreateAssetInput    = z.infer<typeof CreateAssetSchema>;

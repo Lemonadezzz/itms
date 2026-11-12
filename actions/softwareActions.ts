@@ -7,6 +7,7 @@ import { Software } from '@/models/Software';
 import { Employee } from '@/models/Employee';
 import { CreateSoftwareSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
+import { guardAction } from '@/lib/access';
 import type { ActionResult } from '@/types';
 
 async function getActor() {
@@ -18,6 +19,9 @@ async function getActor() {
 }
 
 export async function createSoftware(formData: unknown): Promise<ActionResult<string>> {
+  const guard = await guardAction('software', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateSoftwareSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -30,6 +34,9 @@ export async function createSoftware(formData: unknown): Promise<ActionResult<st
 }
 
 export async function updateSoftware(id: string, formData: unknown): Promise<ActionResult> {
+  const guard = await guardAction('software', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateSoftwareSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -57,6 +64,9 @@ export async function updateSoftware(id: string, formData: unknown): Promise<Act
 }
 
 export async function deleteSoftware(id: string): Promise<ActionResult> {
+  const guard = await guardAction('software', 'delete');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const sw = await Software.findByIdAndDelete(id);
   if (sw) {

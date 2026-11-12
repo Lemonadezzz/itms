@@ -11,6 +11,7 @@ import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { SupplierFormDialog } from './SupplierFormDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteSupplier } from '@/actions/supplierActions';
+import { useCan } from '@/lib/useCan';
 import type { SupplierRow } from '@/lib/data/suppliers';
 
 interface Props {
@@ -25,6 +26,7 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const can = useCan();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SupplierRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SupplierRow | null>(null);
@@ -52,21 +54,28 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
     },
     {
       field: 'actions', headerName: '', width: 80, sortable: false,
-      renderCell: ({ row }) => (
+      renderCell: ({ row }) => {
+        if (!can('suppliers.manage') && !can('suppliers.delete')) return null;
+        return (
         <Box>
+          {can('suppliers.manage') && (
           <Tooltip title="Edit">
             <IconButton size="small" onClick={() => { setEditing(row); setDialogOpen(true); }}>
               <Edit sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
+          {can('suppliers.delete') && (
           <Tooltip title="Delete">
             <IconButton size="small" color="error"
               onClick={() => setDeleteTarget(row)}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
         </Box>
-      ),
+        );
+      },
     },
   ];
 
@@ -80,10 +89,12 @@ export function SuppliersShell({ rows, total, page, pageSize }: Props) {
           InputProps={{ startAdornment: <InputAdornment position="start"><Search sx={{ fontSize: 16 }} /></InputAdornment> }}
           sx={{ width: 220 }}
         />
+        {can('suppliers.manage') && (
         <Button variant="contained" size="small" startIcon={<Add />}
           onClick={() => { setEditing(null); setDialogOpen(true); }}>
           Add Supplier
         </Button>
+        )}
       </Stack>
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>

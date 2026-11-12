@@ -6,6 +6,7 @@ import { connectDB } from '@/lib/db/mongoose';
 import { Supplier } from '@/models/Supplier';
 import { CreateSupplierSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
+import { guardAction } from '@/lib/access';
 import type { ActionResult } from '@/types';
 
 async function getActor() {
@@ -21,6 +22,9 @@ function parseCategories(raw?: string): string[] {
 }
 
 export async function createSupplier(formData: unknown): Promise<ActionResult<string>> {
+  const guard = await guardAction('suppliers', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateSupplierSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -34,6 +38,9 @@ export async function createSupplier(formData: unknown): Promise<ActionResult<st
 }
 
 export async function updateSupplier(id: string, formData: unknown): Promise<ActionResult> {
+  const guard = await guardAction('suppliers', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateSupplierSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -48,6 +55,9 @@ export async function updateSupplier(id: string, formData: unknown): Promise<Act
 }
 
 export async function deleteSupplier(id: string): Promise<ActionResult> {
+  const guard = await guardAction('suppliers', 'delete');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const supplier = await Supplier.findByIdAndDelete(id);
   const { userId, userName } = await getActor();

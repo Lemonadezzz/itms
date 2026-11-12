@@ -1,10 +1,12 @@
 import { Box, Typography } from '@mui/material';
 import { getSuppliers } from '@/lib/data/suppliers';
+import { requirePageAccess } from '@/lib/access';
 import { SuppliersShell } from './_components/SuppliersShell';
 
 interface Props { searchParams: Promise<Record<string, string>>; }
 
 export default async function SuppliersPage({ searchParams }: Props) {
+  await requirePageAccess('suppliers');
   const sp = await searchParams;
   const page = Math.max(0, Number(sp.page ?? 0));
   const pageSize = ([50, 75, 100].includes(Number(sp.pageSize)) ? Number(sp.pageSize) : 50) as 50 | 75 | 100;

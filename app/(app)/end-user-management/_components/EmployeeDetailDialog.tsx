@@ -16,6 +16,7 @@ import {
 } from '@/actions/employeeActions';
 import type { EmployeeSoftwareItem } from '@/actions/employeeActions';
 import { EMPLOYEE_CONTRACT_BADGE_COLORS } from '@/lib/employeeBadges';
+import { useCan } from '@/lib/useCan';
 import type { EmployeeRow } from '@/lib/data/employees';
 import type { EmployeeContractSummary } from '@/lib/data/contracts';
 
@@ -58,6 +59,7 @@ export function EmployeeDetailDialog({
   showSoftware = true,
 }: Props) {
   const isInactive = employee.status === 'Inactive';
+  const can = useCan();
 
   const [assets, setAssets] = useState<Array<{ _id: string; assetCode: string; assetName: string; status: string }>>([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
@@ -191,6 +193,7 @@ export function EmployeeDetailDialog({
                           '&:last-of-type': { borderBottom: 0 },
                         }}
                         secondaryAction={
+                          can('employees.manage') ? (
                           <Tooltip title="Remove">
                             <span>
                               <IconButton
@@ -204,6 +207,7 @@ export function EmployeeDetailDialog({
                               </IconButton>
                             </span>
                           </Tooltip>
+                          ) : undefined
                         }
                       >
                         <ListItemText
@@ -219,6 +223,7 @@ export function EmployeeDetailDialog({
                 )}
               </Box>
 
+              {can('employees.manage') && (
               <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexShrink: 0 }}>
                 <TextField
                   select
@@ -248,6 +253,7 @@ export function EmployeeDetailDialog({
                   Add
                 </Button>
               </Box>
+              )}
             </Paper>
           </Grid>
           )}
@@ -257,7 +263,7 @@ export function EmployeeDetailDialog({
             <Paper sx={{ p: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="subtitle1" fontWeight={700}>{infoTitle}</Typography>
-                {onEdit && (
+                {onEdit && can('employees.manage') && (
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={onEdit}>
                       <Edit sx={{ fontSize: 15 }} />

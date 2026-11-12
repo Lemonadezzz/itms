@@ -11,6 +11,7 @@ import { Software } from '@/models/Software';
 import { getSoftwareOptions } from '@/lib/data/software';
 import { CreateEmployeeSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
+import { guardAction } from '@/lib/access';
 import { returnAsset } from '@/actions/assetActions';
 import { getContractLifecycleStatus } from '@/lib/contracts';
 import { getContractsByEmployee } from '@/lib/data/contracts';
@@ -26,6 +27,9 @@ async function getActor() {
 }
 
 export async function createEmployee(formData: unknown): Promise<ActionResult<string>> {
+  const guard = await guardAction('employees', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateEmployeeSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -48,6 +52,9 @@ export async function createEmployee(formData: unknown): Promise<ActionResult<st
 }
 
 export async function updateEmployee(id: string, formData: unknown): Promise<ActionResult> {
+  const guard = await guardAction('employees', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateEmployeeSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -75,6 +82,9 @@ export async function updateEmployee(id: string, formData: unknown): Promise<Act
 }
 
 export async function deleteEmployee(id: string): Promise<ActionResult> {
+  const guard = await guardAction('employees', 'delete');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const emp = await Employee.findById(id);
   if (!emp) return { success: false, error: 'Employee not found' };
@@ -153,6 +163,9 @@ export async function assignSoftwareToEmployee(
   employeeId: string,
   softwareId: string
 ): Promise<ActionResult> {
+  const guard = await guardAction('employees', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const [emp, sw] = await Promise.all([
     Employee.findById(employeeId),
@@ -173,6 +186,9 @@ export async function removeSoftwareFromEmployee(
   employeeId: string,
   softwareId: string
 ): Promise<ActionResult> {
+  const guard = await guardAction('employees', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const [emp, sw] = await Promise.all([
     Employee.findById(employeeId),
@@ -189,6 +205,9 @@ export async function removeSoftwareFromEmployee(
 }
 
 export async function offboardEmployee(employeeId: string, autoReturn?: boolean): Promise<ActionResult> {
+  const guard = await guardAction('employees', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const emp = await Employee.findById(employeeId);
   if (!emp) return { success: false, error: 'Employee not found' };
@@ -238,6 +257,9 @@ export async function offboardEmployee(employeeId: string, autoReturn?: boolean)
 }
 
 export async function reactivateEmployee(employeeId: string): Promise<ActionResult> {
+  const guard = await guardAction('employees', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const emp = await Employee.findById(employeeId);
   if (!emp) return { success: false, error: 'Employee not found' };

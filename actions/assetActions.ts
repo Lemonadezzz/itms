@@ -9,6 +9,7 @@ import { Contract } from '@/models/Contract';
 import { ActivityLog } from '@/models/ActivityLog';
 import { CreateAssetSchema, AssignAssetSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
+import { guardAction } from '@/lib/access';
 import { getContractLifecycleStatus } from '@/lib/contracts';
 import { Types } from 'mongoose';
 import type { ActionResult } from '@/types';
@@ -33,6 +34,9 @@ async function hasActiveContract(assetId: string): Promise<boolean> {
 }
 
 export async function createAsset(formData: unknown): Promise<ActionResult<string>> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateAssetSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -61,6 +65,9 @@ export async function createAsset(formData: unknown): Promise<ActionResult<strin
 }
 
 export async function updateAsset(id: string, formData: unknown): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateAssetSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -98,6 +105,9 @@ export async function updateAsset(id: string, formData: unknown): Promise<Action
 }
 
 export async function assignAsset(assetId: string, formData: unknown): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = AssignAssetSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -135,6 +145,9 @@ export async function assignAsset(assetId: string, formData: unknown): Promise<A
 }
 
 export async function returnAsset(assetId: string, returnedDate: Date = new Date()): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
@@ -168,6 +181,9 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
 }
 
 export async function deleteAsset(id: string): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'delete');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const asset = await Asset.findById(id);
   if (!asset) return { success: false, error: 'Asset not found' };
@@ -190,6 +206,9 @@ export async function deleteAsset(id: string): Promise<ActionResult> {
   return { success: true, data: undefined };
 }
 export async function clearAssetLog(assetId: string): Promise<ActionResult<{ deleted: number }>> {
+  const guard = await guardAction('assets', 'delete');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
 
   const asset = await Asset.findById(assetId).select('assetCode status').lean();
@@ -224,6 +243,9 @@ export async function clearAssetLog(assetId: string): Promise<ActionResult<{ del
 }
 
 export async function confirmDelivery(assetId: string, acquisitionDate: string): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
@@ -240,6 +262,9 @@ export async function confirmDelivery(assetId: string, acquisitionDate: string):
 }
 
 export async function transferAsset(assetId: string, newEmployeeId: string, notes?: string): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
@@ -277,6 +302,9 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
 }
 
 export async function restoreAsset(assetId: string): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
@@ -291,6 +319,9 @@ export async function restoreAsset(assetId: string): Promise<ActionResult> {
 }
 
 export async function retireAsset(assetId: string, reason: string): Promise<ActionResult> {
+  const guard = await guardAction('assets', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };

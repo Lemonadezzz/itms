@@ -9,6 +9,7 @@ import { EmployeeFormDialog } from './EmployeeFormDialog';
 import { EmployeeDetailDialog } from '@/app/(app)/end-user-management/_components/EmployeeDetailDialog';
 import { OffboardEmployeeModal } from './OffboardEmployeeModal';
 import { deleteEmployee } from '@/actions/employeeActions';
+import { useCan } from '@/lib/useCan';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { EmployeeRow } from '@/lib/data/employees';
 import type { DepartmentOption } from '@/lib/data/departments';
@@ -26,6 +27,7 @@ export function EmployeesShell({ rows, total, page, pageSize, departments }: Pro
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const can = useCan();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EmployeeRow | null>(null);
   const [detailTarget, setDetailTarget] = useState<EmployeeRow | null>(null);
@@ -72,8 +74,12 @@ export function EmployeesShell({ rows, total, page, pageSize, departments }: Pro
     { field: 'companyTenure', headerName: 'Company Tenure', width: 170 },
     {
       field: 'actions', headerName: 'Actions', width: 170, sortable: false, align: 'center', headerAlign: 'center',
-      renderCell: ({ row }) => (
+      renderCell: ({ row }) => {
+        if (!can('employees.manage') && !can('employees.delete')) return null;
+        return (
         <Box>
+          {can('employees.manage') && (
+          <>
           <Tooltip title="Manage Employee">
             <IconButton size="small" onClick={() => setDetailTarget(row)}>
               <EditNote sx={{ fontSize: 15 }} />
@@ -99,13 +105,18 @@ export function EmployeesShell({ rows, total, page, pageSize, departments }: Pro
               </IconButton>
             </Tooltip>
           )}
+          </>
+          )}
+          {can('employees.delete') && (
           <Tooltip title="Delete Employee">
             <IconButton size="small" color="error" onClick={() => setDeleteTarget(row)}>
               <Delete sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
+          )}
         </Box>
-      ),
+        );
+      },
     },
   ];
 
@@ -119,10 +130,12 @@ export function EmployeesShell({ rows, total, page, pageSize, departments }: Pro
           InputProps={{ startAdornment: <InputAdornment position="start"><Search sx={{ fontSize: 16 }} /></InputAdornment> }}
           sx={{ width: 220 }}
         />
+        {can('employees.manage') && (
         <Button variant="contained" size="small" startIcon={<Add />}
           onClick={() => { setEditing(null); setDialogOpen(true); }}>
           Add Employee
         </Button>
+        )}
       </Stack>
 
       <Box sx={{ flex: 1, minHeight: 400, height: 'calc(100vh - 110px)', display: 'flex', flexDirection: 'column' }}>

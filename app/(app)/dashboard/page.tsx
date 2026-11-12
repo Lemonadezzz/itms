@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
+import { landingPath } from '@/lib/access';
 
-export default function DashboardRedirect() {
-  redirect('/assets-overview');
+export default async function DashboardRedirect() {
+  redirect(await landingPath());
 }

@@ -7,6 +7,7 @@ import { Department } from '@/models/Department';
 import { Employee } from '@/models/Employee';
 import { CreateDepartmentSchema } from '@/lib/validations';
 import { writeLog } from '@/lib/activityLog';
+import { guardAction } from '@/lib/access';
 import type { ActionResult } from '@/types';
 
 async function getActor() {
@@ -18,6 +19,9 @@ async function getActor() {
 }
 
 export async function createDepartment(formData: unknown): Promise<ActionResult<string>> {
+  const guard = await guardAction('departments', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateDepartmentSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -39,6 +43,9 @@ export async function createDepartment(formData: unknown): Promise<ActionResult<
 }
 
 export async function updateDepartment(id: string, formData: unknown): Promise<ActionResult> {
+  const guard = await guardAction('departments', 'manage');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const parsed = CreateDepartmentSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
 
@@ -69,6 +76,9 @@ export async function updateDepartment(id: string, formData: unknown): Promise<A
 }
 
 export async function deleteDepartment(id: string): Promise<ActionResult> {
+  const guard = await guardAction('departments', 'delete');
+  if (!guard.ok) return { success: false, error: guard.error };
+
   await connectDB();
   const dept = await Department.findById(id);
   if (!dept) return { success: false, error: 'Department not found' };

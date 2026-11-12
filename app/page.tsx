@@ -1,2 +1,6 @@
 import { redirect } from 'next/navigation';
-export default function Home() { redirect('/assets-overview'); }
+import { landingPath } from '@/lib/access';
+
+export default async function Home() {
+  redirect(await landingPath());
+}

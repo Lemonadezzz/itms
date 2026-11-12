@@ -1,10 +1,12 @@
 import { Box, Typography } from '@mui/material';
 import { getContracts } from '@/lib/data/contracts';
+import { requirePageAccess } from '@/lib/access';
 import { ContractsShell } from './_components/ContractsShell';
 
 interface Props { searchParams: Promise<Record<string, string>>; }
 
 export default async function ContractsPage({ searchParams }: Props) {
+  await requirePageAccess('contracts');
   const sp = await searchParams;
   const page = Math.max(0, Number(sp.page ?? 0));
   const pageSize = ([50, 75, 100].includes(Number(sp.pageSize)) ? Number(sp.pageSize) : 50) as 50 | 75 | 100;

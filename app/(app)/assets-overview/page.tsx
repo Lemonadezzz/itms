@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Box, Card, CardContent, Grid, Typography } from '@mui/material';
 import { Inventory, AttachMoney, CheckCircle, RadioButtonUnchecked } from '@mui/icons-material';
 import { getDashboardStats } from '@/lib/data/dashboard';
+import { requirePageAccess } from '@/lib/access';
 import { DashboardChartsLazy } from './_components/DashboardChartsLazy';
 
 const phpFormat = (v: number) =>
@@ -40,7 +41,8 @@ async function DashboardContent() {
   );
 }
 
-export default function AssetsOverviewPage() {
+export default async function AssetsOverviewPage() {
+  await requirePageAccess('assets');
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2, overflow: 'auto' }}>
       <Typography variant="subtitle1" fontWeight={700} mb={1.5}>Overview</Typography>

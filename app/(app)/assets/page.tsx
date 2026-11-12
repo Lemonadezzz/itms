@@ -1,6 +1,7 @@
 import { Box, Typography } from '@mui/material';
 import { getAssets } from '@/lib/data/assets';
 import { getEmployeeOptions } from '@/lib/data/employees';
+import { requirePageAccess } from '@/lib/access';
 import { AssetsShell } from './_components/AssetsShell';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default async function AssetsPage({ searchParams }: Props) {
+  await requirePageAccess('assets');
   const sp = await searchParams;
 
   const page     = Math.max(0, Number(sp.page ?? 0));
