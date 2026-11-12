@@ -15,16 +15,19 @@ export async function getLogs({
   pageSize = 50,
   search = '',
   action = '',
+  models = [],
 }: {
   page?: number;
   pageSize?: number;
   search?: string;
   action?: string;
+  models?: string[];
 }): Promise<{ rows: LogRow[]; total: number }> {
   await connectDB();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: Record<string, any> = {};
+  if (models.length > 0) query.relatedModel = { $in: models };
   if (search) query.$or = [
     { userName:    { $regex: search, $options: 'i' } },
     { description: { $regex: search, $options: 'i' } },

@@ -14,7 +14,7 @@ import {
   getMonthlyDepreciationSchedule,
 } from '@/lib/depreciation';
 import type { AssetRow, AssetLogEntry } from '@/types';
-import { transferAsset, assignAsset, returnAsset, decommissionAsset, recommissionAsset, clearAssetLog } from '@/actions/assetActions';
+import { transferAsset, assignAsset, returnAsset, retireAsset, restoreAsset, clearAssetLog } from '@/actions/assetActions';
 // Note: transferAsset is the server action for transfers, assignAsset is for new assignments
 import { AssignDialog } from './AssignDialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -54,8 +54,8 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
   const [transferAction, setTransferAction] = useState<'transfer' | 'return' | null>(null);
   const [transferEmpId, setTransferEmpId] = useState('');
   const [dialogKey, setDialogKey] = useState(0);
-  const [decommissionOpen, setDecommissionOpen] = useState(false);
-  const [recommissionOpen, setRecommissionOpen] = useState(false);
+  const [retireOpen, setRetireOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const [confirmDeliveryOpen, setConfirmDeliveryOpen] = useState(false);
   const [clearLogOpen, setClearLogOpen] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
@@ -136,9 +136,9 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
     }
   }
 
-  const handleDecommission = () => setDecommissionOpen(true);
+  const handleRetire = () => setRetireOpen(true);
 
-  const handleRecommission = () => setRecommissionOpen(true);
+  const handleRestore = () => setRestoreOpen(true);
 
   const currentValue = useMemo(
     () => asset.depreciationMethod ? calculateCurrentValue(asset.acquisitionCost, asset.acquisitionDate, asset.depreciationMethod, asset.assignedDate) : null,
@@ -160,8 +160,8 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
     'Assign': 'warning',
     'Return': 'info',
     'Transfer': 'info',
-    'Decommission': 'error',
-    'Recommission': 'success',
+    'Retire': 'error',
+    'Restore': 'success',
   };
 
   const AssetLogTable = ({ rows }: { rows: AssetLogEntry[] }) => (
@@ -269,7 +269,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
                         color={
                           status === 'In Use' ? 'warning' :
                             status === 'In Stock' ? 'success' :
-                              status === 'Decommissioned' ? 'error' :
+                              status === 'Retired' ? 'error' :
                                 status === 'Ordered' ? 'info' :
                                   'default'
                         } sx={{ fontSize: '0.75rem' }} />
@@ -325,7 +325,21 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
                       <Button variant="outlined" size="small" color="info" startIcon={<MoveUp />} onClick={() => setConfirmDeliveryOpen(true)}>Confirm Delivery</Button>
                     )}
                     {status === 'In Use' && (
-                      <Button variant="outlined" size="small" color="info" startIcon={<MoveDown />} onClick={() => { setTransferOpen(true); setTransferAction(null); setTransferEmpId(''); }}>Transfer / Return</Button>
+                      <Tooltip title={asset.hasActiveContract ? 'This device is on an active contract.' : ''}>
+                        <span>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color="info"
+                            startIcon={<MoveDown />}
+                            disabled={asset.hasActiveContract}
+                            fullWidth
+                            onClick={() => { setTransferOpen(true); setTransferAction(null); setTransferEmpId(''); }}
+                          >
+                            Transfer / Return
+                          </Button>
+                        </span>
+                      </Tooltip>
                     )}
                     {status === 'In Use' && asset.hasActiveContract && (
                       <Tooltip title="This device is on an active contract.">
@@ -338,7 +352,7 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
                             disabled
                             fullWidth
                           >
-                            Decommission
+                            Retire
                           </Button>
                         </span>
                       </Tooltip>
@@ -353,18 +367,18 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
                               size="small"
                               color="error"
                               startIcon={<DesktopAccessDisabled />}
-                              onClick={handleDecommission}
+                              onClick={handleRetire}
                               disabled={asset.hasActiveContract}
                               fullWidth
                             >
-                              Decommission
+                              Retire
                             </Button>
                           </span>
                         </Tooltip>
                       </>
                     )}
-                    {status === 'Decommissioned' && (
-                      <Button variant="outlined" size="small" color="success" startIcon={<PublishedWithChanges />} onClick={handleRecommission}>Recommission</Button>
+                    {status === 'Retired' && (
+                      <Button variant="outlined" size="small" color="success" startIcon={<PublishedWithChanges />} onClick={handleRestore}>Restore to Stock</Button>
                     )}
                   </Box>
                 </Box>
@@ -458,24 +472,24 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
         />
       )}
 
-      {/* ── Decommission confirmation dialog ── */}
+      {/* ── Retire confirmation dialog ── */}
       <ConfirmDialog
-        open={decommissionOpen}
-        title={`Decommission ${asset.assetCode}?`}
-        message="This will soft-delete the asset and set its status to Decommissioned."
-        confirmLabel="Decommission"
-        requireText="Reason for decommission"
+        open={retireOpen}
+        title={`Retire ${asset.assetCode}?`}
+        message="This will retire the asset and set its status to Retired."
+        confirmLabel="Retire"
+        requireText="Reason for retirement"
         requirePlaceholder="e.g. Damaged beyond repair, End of life, Lost"
         onConfirm={async (reason) => {
-          const res = await decommissionAsset(asset._id, reason);
+          const res = await retireAsset(asset._id, reason);
           if (res.success) {
-            setStatus('Decommissioned');
-            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Decommission', details: reason }]);
-            setDecommissionOpen(false);
+            setStatus('Retired');
+            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Retire', details: reason }]);
+            setRetireOpen(false);
           }
           return res.success;
         }}
-        onCancel={() => setDecommissionOpen(false)}
+        onCancel={() => setRetireOpen(false)}
       />
 
       {/* ── Confirm Delivery dialog ── */}
@@ -490,23 +504,23 @@ export function AssetDetailDialog({ asset, onClose, employees = [], onEdit }: Pr
         />
       )}
 
-      {/* ── Recommission confirmation dialog ── */}
+      {/* ── Restore confirmation dialog ── */}
       <ConfirmDialog
-        open={recommissionOpen}
-        title={`Recommission ${asset.assetCode}?`}
+        open={restoreOpen}
+        title={`Restore ${asset.assetCode} to stock?`}
         message='This will set the asset status back to "In Stock".'
-        confirmLabel="Recommission"
+        confirmLabel="Restore to Stock"
         confirmColor="success"
         onConfirm={async () => {
-          const res = await recommissionAsset(asset._id);
+          const res = await restoreAsset(asset._id);
           if (res.success) {
             setStatus('In Stock');
-            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Recommission', details: 'Returned to service' }]);
-            setRecommissionOpen(false);
+            setAssetLog((prev) => [...prev, { date: new Date().toISOString(), action: 'Restore', details: 'Returned to stock' }]);
+            setRestoreOpen(false);
           }
           return res.success;
         }}
-        onCancel={() => setRecommissionOpen(false)}
+        onCancel={() => setRestoreOpen(false)}
       />
 
       {/* ── Transfer / Return sub-dialog ── */}

@@ -10,12 +10,13 @@ export type EmployeeRow = {
   employeeName: string;
   email: string;
   department: string;
+  departmentId?: string;
   userType: string;
   status: string;
   hiredAt?: string;
   resignedAt?: string;
-  isDeleted: boolean;
   assignedAssetCount: number;
+  softwareCount: number;
   companyTenure: string;
   contractBadge: EmployeeContractBadge;
 };
@@ -64,7 +65,6 @@ export async function getEmployees({
     ]),
     Contract.find({
       employeeId: { $in: employeeIds },
-      isDeleted: { $ne: true },
       issuedDate: { $exists: true },
     })
       .select('employeeId issuedDate endedAt')
@@ -106,12 +106,13 @@ export async function getEmployees({
         employeeName: e.employeeName,
         email: e.email ?? '',
         department: e.department,
+        departmentId: e.departmentId?.toString(),
         userType: e.userType,
         status: e.status,
         hiredAt: hiredAt?.toISOString(),
         resignedAt: e.resignedAt?.toISOString(),
-        isDeleted: e.isDeleted,
         assignedAssetCount: countMap.get(id) ?? 0,
+        softwareCount: (e.softwareIds ?? []).length,
         companyTenure: formatTenureShort(tenureMonths),
         contractBadge,
       };

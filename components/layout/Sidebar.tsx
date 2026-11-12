@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import {
   Box, Drawer, IconButton, List, ListItemButton,
@@ -13,6 +13,7 @@ import {
   Dashboard, Inventory, People, ConfirmationNumber,
   Computer, Business, Calculate, History, Description,
   ChevronLeft, Menu, LightMode, DarkMode, Logout, Settings,
+  ExpandLess, ExpandMore, ManageAccounts, Badge, Apartment,
 } from '@mui/icons-material';
 import { useColorMode } from '@/theme/ThemeProvider';
 import { ProfileDialog } from './ProfileDialog';
@@ -21,17 +22,31 @@ const EXPANDED = 240;
 const COLLAPSED = 60;
 const ICON_COL = 36;
 
-const navItems = [
-  { text: 'Dashboard', href: '/dashboard', icon: <Dashboard fontSize="small" /> },
+const assetChildren = [
+  { text: 'Overview', href: '/assets-overview', icon: <Dashboard fontSize="small" /> },
   { text: 'Hardware', href: '/assets', icon: <Inventory fontSize="small" /> },
-  { text: 'Employees', href: '/employees', icon: <People fontSize="small" /> },
-  { text: 'Contracts', href: '/contracts', icon: <Description fontSize="small" /> },
-  { text: 'Tickets', href: '/tickets', icon: <ConfirmationNumber fontSize="small" /> },
   { text: 'Software', href: '/software', icon: <Computer fontSize="small" /> },
-  { text: 'Suppliers', href: '/suppliers', icon: <Business fontSize="small" /> },
-  { text: 'Calculator', href: '/calculator', icon: <Calculate fontSize="small" /> },
+  { text: 'End-Users', href: '/end-user-management', icon: <People fontSize="small" /> },
+  { text: 'Contracts', href: '/contracts', icon: <Description fontSize="small" /> },
   { text: 'Logs', href: '/logs', icon: <History fontSize="small" /> },
 ];
+
+const employeeChildren = [
+  { text: 'Employees', href: '/employees', icon: <Badge fontSize="small" /> },
+  { text: 'Departments', href: '/departments', icon: <Apartment fontSize="small" /> },
+];
+
+const navItems = [
+  { text: 'Tickets', href: '/tickets', icon: <ConfirmationNumber fontSize="small" /> },
+  { text: 'Suppliers', href: '/suppliers', icon: <Business fontSize="small" /> },
+  { text: 'Calculator', href: '/calculator', icon: <Calculate fontSize="small" /> },
+];
+
+function isActive(pathname: string, href: string) {
+  if (href === '/assets-overview') return pathname === '/assets-overview';
+  if (href === '/assets') return pathname === '/assets' || pathname.startsWith('/assets/');
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function avatarColor(name: string) {
   const colors = ['#F05340', '#4085F0', '#269066', '#8b5cf6', '#eab308', '#f97316'];
@@ -46,11 +61,17 @@ function initials(name: string) {
 
 export function Sidebar() {
   const [open, setOpen] = useState(true);
+  const [assetsOpen, setAssetsOpen] = useState(true);
+  const [employeesOpen, setEmployeesOpen] = useState(true);
   const [profileOpen, setProfile] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { toggle, mode } = useColorMode();
   const { data: session } = useSession();
   const width = open ? EXPANDED : COLLAPSED;
+  const assetsActive =
+    pathname === '/assets-overview' || assetChildren.some((item) => isActive(pathname, item.href));
+  const employeesActive = employeeChildren.some((item) => isActive(pathname, item.href));
 
   const userName = session?.user?.name ?? '—';
   const userEmail = session?.user?.email ?? '—';
@@ -109,6 +130,138 @@ export function Sidebar() {
 
         {/* Nav items */}
         <List dense disablePadding sx={{ mt: 0.5 }}>
+          {/* Assets category — the label links to the Overview page */}
+          <Tooltip title={open ? '' : 'Assets'} placement="right" arrow>
+            <ListItemButton component="div" onClick={() => router.push('/assets-overview')} sx={{ ...itemSx, cursor: 'pointer' }}>
+              <ListItemIcon sx={iconSx(assetsActive)}>
+                <Inventory fontSize="small" />
+              </ListItemIcon>
+              {open && (
+                <>
+                  <ListItemText
+                    primary="Assets"
+                    primaryTypographyProps={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      noWrap: true,
+                      color: assetsActive ? 'primary.main' : 'inherit',
+                    }}
+                    sx={{ ml: 0.5 }}
+                  />
+                  <IconButton
+                    size="small"
+                    aria-label={assetsOpen ? 'Collapse Assets' : 'Expand Assets'}
+                    onClick={(e) => { e.stopPropagation(); setAssetsOpen((v) => !v); }}
+                    sx={{ mr: 0.5, color: 'text.secondary' }}
+                  >
+                    {assetsOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                  </IconButton>
+                </>
+              )}
+            </ListItemButton>
+          </Tooltip>
+
+          {(open ? assetsOpen : true) && assetChildren.map(({ text, href, icon }) => {
+            const active = isActive(pathname, href);
+            return (
+              <Tooltip key={href} title={open ? '' : text} placement="right" arrow>
+                <ListItemButton
+                  component={Link}
+                  href={href}
+                  selected={active}
+                  sx={open ? { ...itemSx, pl: '44px' } : itemSx}
+                >
+                  <ListItemIcon
+                    sx={{
+                      ...iconSx(active),
+                      minWidth: open ? 24 : ICON_COL,
+                      width: open ? 24 : ICON_COL,
+                    }}
+                  >
+                    {icon}
+                  </ListItemIcon>
+                  {open && (
+                    <ListItemText
+                      primary={text}
+                      primaryTypographyProps={{
+                        fontSize: '0.75rem',
+                        fontWeight: active ? 600 : 400,
+                        noWrap: true,
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </Tooltip>
+            );
+          })}
+
+          {/* Employee Management category */}
+          <Tooltip title={open ? '' : 'Employee Management'} placement="right" arrow>
+            <ListItemButton component="div" onClick={() => setEmployeesOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
+              <ListItemIcon sx={iconSx(employeesActive)}>
+                <ManageAccounts fontSize="small" />
+              </ListItemIcon>
+              {open && (
+                <>
+                  <ListItemText
+                    primary="Employee Management"
+                    primaryTypographyProps={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      noWrap: true,
+                      color: employeesActive ? 'primary.main' : 'inherit',
+                    }}
+                    sx={{ ml: 0.5 }}
+                  />
+                  <IconButton
+                    size="small"
+                    aria-label={employeesOpen ? 'Collapse Employee Management' : 'Expand Employee Management'}
+                    onClick={(e) => { e.stopPropagation(); setEmployeesOpen((v) => !v); }}
+                    sx={{ mr: 0.5, color: 'text.secondary' }}
+                  >
+                    {employeesOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                  </IconButton>
+                </>
+              )}
+            </ListItemButton>
+          </Tooltip>
+
+          {(open ? employeesOpen : true) && employeeChildren.map(({ text, href, icon }) => {
+            const active = isActive(pathname, href);
+            return (
+              <Tooltip key={href} title={open ? '' : text} placement="right" arrow>
+                <ListItemButton
+                  component={Link}
+                  href={href}
+                  selected={active}
+                  sx={open ? { ...itemSx, pl: '44px' } : itemSx}
+                >
+                  <ListItemIcon
+                    sx={{
+                      ...iconSx(active),
+                      minWidth: open ? 24 : ICON_COL,
+                      width: open ? 24 : ICON_COL,
+                    }}
+                  >
+                    {icon}
+                  </ListItemIcon>
+                  {open && (
+                    <ListItemText
+                      primary={text}
+                      primaryTypographyProps={{
+                        fontSize: '0.75rem',
+                        fontWeight: active ? 600 : 400,
+                        noWrap: true,
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </Tooltip>
+            );
+          })}
+
+          <Divider sx={{ my: 0.5 }} />
+
           {navItems.map(({ text, href, icon }) => {
             const active = pathname.startsWith(href);
             return (

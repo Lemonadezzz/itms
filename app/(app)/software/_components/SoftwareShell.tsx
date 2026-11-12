@@ -13,15 +13,26 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { deleteSoftware } from '@/actions/softwareActions';
 import type { SoftwareRow } from '@/lib/data/software';
 
-const phpFormat = (v: number) =>
-  new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
-
-const LICENSE_COLORS: Record<string, string> = {
-  monthly:   '#4085F0',
-  annually:  '#269066',
-  '3_years': '#F05340',
-  perpetual: '#8b5cf6',
+const CATEGORY_COLORS: Record<string, string> = {
+  'Commercial / Paid License': '#8b5cf6',
+  'Internal / In-house App':   '#0ea5e9',
+  'Free / Enterprise Utility': '#269066',
+  'SaaS Subscription':         '#F05340',
 };
+
+const STATUS_COLORS: Record<string, string> = {
+  'Active':              '#22c55e',
+  'Deprecated / Legacy': '#9ca3af',
+  'In Development':      '#4085F0',
+  'Under Review':        '#eab308',
+};
+
+const chipSx = (color?: string) => ({
+  bgcolor: color ?? '#888',
+  color: '#fff',
+  fontSize: '0.65rem',
+  height: 20,
+});
 
 interface Props {
   rows: SoftwareRow[];
@@ -47,28 +58,36 @@ export function SoftwareShell({ rows, total, page, pageSize, suppliers }: Props)
   }
 
   const columns: GridColDef<SoftwareRow>[] = [
-    { field: 'softwareName', headerName: 'Software', flex: 1, minWidth: 160 },
+    { field: 'softwareName', headerName: 'Name', flex: 1, minWidth: 200 },
     {
-      field: 'licenseType', headerName: 'License', width: 110,
+      field: 'category', headerName: 'Category', width: 230,
       renderCell: ({ value }) => (
-        <Chip label={value} size="small"
-          sx={{ bgcolor: LICENSE_COLORS[value] ?? '#888', color: '#fff', fontSize: '0.7rem', height: 20 }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Chip label={value as string} size="small" sx={chipSx(CATEGORY_COLORS[value as string])} />
+        </Box>
       ),
     },
     {
-      field: 'acquisitionDate', headerName: 'Acquired', width: 110,
-      renderCell: ({ value }) => new Date(value).toLocaleDateString(),
+      field: 'status', headerName: 'Status', width: 170,
+      renderCell: ({ value }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Chip label={value as string} size="small" sx={chipSx(STATUS_COLORS[value as string])} />
+        </Box>
+      ),
     },
     {
-      field: 'acquisitionCost', headerName: 'Cost', width: 130,
-      renderCell: ({ value }) => <span style={{ fontSize: '0.72rem' }}>{phpFormat(value as number)}</span>,
+      field: 'licenseType', headerName: 'License Type', width: 180,
+      renderCell: ({ value }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {value
+            ? <Chip label={value as string} size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
+            : '—'}
+        </Box>
+      ),
     },
     {
-      field: 'monthlyCost', headerName: 'Monthly', width: 120,
-      renderCell: ({ value }) => value ? <span style={{ fontSize: '0.72rem' }}>{phpFormat(value as number)}</span> : '—',
-    },
-    {
-      field: 'actions', headerName: '', width: 80, sortable: false,
+      field: 'actions', headerName: 'Actions', width: 100, sortable: false,
+      align: 'center', headerAlign: 'center',
       renderCell: ({ row }) => (
         <Box>
           <Tooltip title="Edit">

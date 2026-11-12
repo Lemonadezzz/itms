@@ -7,20 +7,23 @@ import {
 } from '@mui/material';
 import { createEmployee, updateEmployee } from '@/actions/employeeActions';
 import type { EmployeeRow } from '@/lib/data/employees';
+import type { DepartmentOption } from '@/lib/data/departments';
 
 interface Props {
   open: boolean;
   employee: EmployeeRow | null;
+  departments: DepartmentOption[];
   onClose: () => void;
   onUpdate?: (updated: EmployeeRow) => void;
 }
 
-export function EmployeeFormDialog({ open, employee, onClose, onUpdate }: Props) {
+export function EmployeeFormDialog({ open, employee, departments, onClose, onUpdate }: Props) {
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const isEdit = !!employee;
   const [userType, setUserType] = useState('');
   const [status, setStatus] = useState('Active');
+  const [departmentId, setDepartmentId] = useState('');
   const [formData, setFormData] = useState<Record<string, string>>({});
 
   // Reset form when opening with different employee
@@ -28,15 +31,16 @@ export function EmployeeFormDialog({ open, employee, onClose, onUpdate }: Props)
     if (employee) {
       setUserType(employee.userType || '');
       setStatus(employee.status || 'Active');
+      setDepartmentId(employee.departmentId || '');
       setFormData({
         employeeName: employee.employeeName || '',
         email: employee.email || '',
-        department: employee.department || '',
         hiredAt: employee.hiredAt ? employee.hiredAt.split('T')[0] : '',
       });
     } else {
       setUserType('');
       setStatus('Active');
+      setDepartmentId('');
       setFormData({});
     }
   }, [open, employee?._id]);
@@ -46,6 +50,7 @@ export function EmployeeFormDialog({ open, employee, onClose, onUpdate }: Props)
     const fd = new FormData(e.currentTarget);
     const data = Object.fromEntries(fd.entries());
     data.userType = userType;
+    data.departmentId = departmentId;
     if (isEdit) data.status = status;
     startTransition(async () => {
       const res = isEdit
@@ -57,7 +62,8 @@ export function EmployeeFormDialog({ open, employee, onClose, onUpdate }: Props)
           ...employee,
           employeeName: data.employeeName as string,
           email: data.email as string,
-          department: data.department as string,
+          departmentId,
+          department: departments.find((d) => d._id === departmentId)?.departmentName ?? employee.department,
           userType: userType as string,
           status: status as string,
           hiredAt: data.hiredAt
@@ -87,8 +93,24 @@ export function EmployeeFormDialog({ open, employee, onClose, onUpdate }: Props)
                 value={formData.email || ''} onChange={(e) => setFormData({...formData, email: e.target.value})} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="department" label="Department" size="small" required fullWidth
-                value={formData.department || ''} onChange={(e) => setFormData({...formData, department: e.target.value})} />
+              <TextField
+                name="departmentId"
+                label="Department"
+                size="small"
+                select
+                required
+                fullWidth
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                disabled={departments.length === 0}
+                helperText={departments.length === 0 ? 'Create a department first.' : undefined}
+              >
+                {departments.map((dept) => (
+                  <MenuItem key={dept._id} value={dept._id}>
+                    {dept.departmentName}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="userType" label="User Type" size="small" select required fullWidth

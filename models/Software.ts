@@ -1,25 +1,38 @@
 import { Schema, model, models, Document, Types } from 'mongoose';
-
-export const LICENSE_TYPES = ['monthly', 'annually', '3_years', 'perpetual'] as const;
-export type LicenseType = (typeof LICENSE_TYPES)[number];
+import {
+  SOFTWARE_CATEGORIES,
+  SOFTWARE_LICENSE_TYPES,
+  SOFTWARE_STATUSES,
+  type SoftwareCategory,
+  type SoftwareLicenseType,
+  type SoftwareStatus,
+} from '@/lib/software';
 
 export interface ISoftware extends Document {
   softwareName: string;
-  acquisitionDate: Date;
-  licenseType: LicenseType;
+  category: SoftwareCategory;
+  status: SoftwareStatus;
+  appOwner?: string;
+  supportLink?: string;
+  licenseType?: SoftwareLicenseType;
   supplierId?: Types.ObjectId;
-  acquisitionCost: number;
-  monthlyCost?: number;
+  acquisitionDate?: Date;
+  renewalDate?: Date;
+  acquisitionCost?: number;
 }
 
 const SoftwareSchema = new Schema<ISoftware>(
   {
-    softwareName: { type: String, required: true },
-    acquisitionDate: { type: Date, required: true },
-    licenseType: { type: String, enum: LICENSE_TYPES, required: true },
+    softwareName: { type: String, required: true, trim: true },
+    category: { type: String, enum: SOFTWARE_CATEGORIES, required: true },
+    status: { type: String, enum: SOFTWARE_STATUSES, required: true, default: 'Active' },
+    appOwner: { type: String, trim: true },
+    supportLink: { type: String, trim: true },
+    licenseType: { type: String, enum: SOFTWARE_LICENSE_TYPES },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier' },
-    acquisitionCost: { type: Number, required: true, min: 0 },
-    monthlyCost: { type: Number, min: 0 },
+    acquisitionDate: Date,
+    renewalDate: Date,
+    acquisitionCost: { type: Number, min: 0 },
   },
   { timestamps: true }
 );

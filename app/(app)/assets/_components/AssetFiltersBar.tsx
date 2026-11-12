@@ -50,7 +50,7 @@ export function AssetFiltersBar({ employees, onFilter }: Props) {
         <MenuItem value="Ordered">Ordered</MenuItem>
         <MenuItem value="In Stock">In Stock</MenuItem>
         <MenuItem value="In Use">In Use</MenuItem>
-        <MenuItem value="Decommissioned">Decommissioned</MenuItem>
+        <MenuItem value="Retired">Retired</MenuItem>
       </TextField>
 
       <Autocomplete

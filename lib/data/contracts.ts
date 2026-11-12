@@ -34,6 +34,7 @@ export type ContractRow = {
   remaining: number;
   status: ContractStatus;
   tenure: string;
+  tenureShort: string;
   contractEnd: string;
   contractStatus: ContractLifecycleStatus;
   endedAt?: string;
@@ -102,7 +103,6 @@ export async function getContracts({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const query: Record<string, any> = {
-    isDeleted: { $ne: true },
     employeeId: { $exists: true },
     issuedDate: { $exists: true },
   };
@@ -164,6 +164,7 @@ export async function getContracts({
         remaining: metrics.remaining,
         status: metrics.status,
         tenure: formatTenure(c.issuedDate, reference),
+        tenureShort: formatTenureShort(monthsElapsed(new Date(c.issuedDate), reference)),
         contractEnd: getEffectiveContractEnd(c.issuedDate, endedAt).toISOString(),
         contractStatus: resolveContractStatus(c.issuedDate, endedAt, now),
         endedAt: endedAt?.toISOString(),
@@ -185,7 +186,7 @@ export type EmployeeContractSummary = {
   contractStatus: ContractLifecycleStatus;
 };
 
-/** All non-deleted contracts for an employee, oldest first. */
+/** All contracts for an employee, oldest first. */
 export async function getContractsByEmployee(
   employeeId: string
 ): Promise<EmployeeContractSummary[]> {
@@ -194,7 +195,6 @@ export async function getContractsByEmployee(
 
   const docs = await Contract.find({
     employeeId,
-    isDeleted: { $ne: true },
     issuedDate: { $exists: true },
   })
     .sort({ issuedDate: 1 })
@@ -233,7 +233,7 @@ export async function getContractsByEmployee(
     })
       .populate({ path: 'currentAssignment.employeeId', select: 'employeeName status', model: Employee })
       .lean() as unknown as Promise<LeanEligibleAsset[]>,
-    Contract.find({ isDeleted: { $ne: true }, employeeId: { $exists: true } })
+    Contract.find({ employeeId: { $exists: true } })
       .select('employeeId')
       .lean(),
   ]);

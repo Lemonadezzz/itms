@@ -4,12 +4,32 @@ import { Software } from '@/models/Software';
 export type SoftwareRow = {
   _id: string;
   softwareName: string;
-  licenseType: string;
-  acquisitionDate: string;
-  acquisitionCost: number;
-  monthlyCost?: number;
+  category: string;
+  status: string;
+  appOwner?: string;
+  supportLink?: string;
+  licenseType?: string;
   supplierId?: string;
+  acquisitionDate?: string;
+  renewalDate?: string;
+  acquisitionCost?: number;
 };
+
+export async function getSoftwareOptions(): Promise<
+  { _id: string; softwareName: string; category: string; status: string }[]
+> {
+  await connectDB();
+  const docs = await Software.find(
+    {},
+    { softwareName: 1, category: 1, status: 1 }
+  ).sort({ softwareName: 1 }).lean();
+  return docs.map((s) => ({
+    _id:          s._id.toString(),
+    softwareName: s.softwareName,
+    category:     s.category,
+    status:       s.status,
+  }));
+}
 
 export async function getSoftware({
   page = 0,
@@ -36,11 +56,15 @@ export async function getSoftware({
     rows: docs.map((s) => ({
       _id:             s._id.toString(),
       softwareName:    s.softwareName,
+      category:        s.category,
+      status:          s.status,
+      appOwner:        s.appOwner,
+      supportLink:     s.supportLink,
       licenseType:     s.licenseType,
-      acquisitionDate: s.acquisitionDate.toISOString(),
-      acquisitionCost: s.acquisitionCost,
-      monthlyCost:     s.monthlyCost,
       supplierId:      s.supplierId?.toString(),
+      acquisitionDate: s.acquisitionDate?.toISOString(),
+      renewalDate:     s.renewalDate?.toISOString(),
+      acquisitionCost: s.acquisitionCost,
     })),
     total,
   };

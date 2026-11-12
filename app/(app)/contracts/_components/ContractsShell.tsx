@@ -77,7 +77,10 @@ export function ContractsShell({ rows, total, page, pageSize }: Props) {
       field: 'finishDate', headerName: 'Payment End', width: 130,
       renderCell: ({ value }) => formatDate(value as string),
     },
-    { field: 'tenure', headerName: 'Tenure', width: 130 },
+    {
+      field: 'tenure', headerName: 'Tenure', width: 130,
+      renderCell: ({ row }) => row.tenureShort,
+    },
     {
       field: 'contractEnd', headerName: 'Contract End', width: 130,
       renderCell: ({ value }) => formatDate(value as string),

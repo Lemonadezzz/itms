@@ -47,13 +47,13 @@ export async function GET(
         entries.push({ date, action: 'Transfer', details: `${oldEmp} > ${newEmp}` });
         break;
       }
-      case 'ASSET_DECOMMISSION': {
+      case 'ASSET_RETIRE': {
         const reason = log.reason || 'No reason provided';
-        entries.push({ date, action: 'Decommission', details: reason });
+        entries.push({ date, action: 'Retire', details: reason });
         break;
       }
-      case 'ASSET_RECOMMISSION': {
-        entries.push({ date, action: 'Recommission', details: 'Returned to service' });
+      case 'ASSET_RESTORE': {
+        entries.push({ date, action: 'Restore', details: 'Returned to stock' });
         break;
       }
       default:

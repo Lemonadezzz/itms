@@ -87,7 +87,7 @@ export function AssetTable({
         let color: 'default' | 'success' | 'warning' | 'error' | 'info' = 'default';
         if (status === 'In Use') color = 'warning';
         else if (status === 'In Stock' || status === 'Available') color = 'success';
-        else if (status === 'Decommissioned') color = 'error';
+        else if (status === 'Retired') color = 'error';
         else if (status === 'Ordered') color = 'info';
         
         return (

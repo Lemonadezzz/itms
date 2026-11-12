@@ -13,7 +13,7 @@ import {
   getContractLifecycleStatus,
 } from '@/lib/contracts';
 import { writeLog } from '@/lib/activityLog';
-import { decommissionAsset, returnAsset } from '@/actions/assetActions';
+import { retireAsset, returnAsset } from '@/actions/assetActions';
 import { getEligibleLaptopEmployees } from '@/lib/data/contracts';
 import type { EligibleContractOption } from '@/lib/data/contracts';
 import type { ActionResult } from '@/types';
@@ -27,7 +27,7 @@ async function getActor() {
 }
 
 async function hasContract(employeeId: string): Promise<boolean> {
-  return !!(await Contract.exists({ isDeleted: { $ne: true }, employeeId }));
+  return !!(await Contract.exists({ employeeId }));
 }
 
 export async function createContract(formData: unknown): Promise<ActionResult<string>> {
@@ -129,12 +129,11 @@ export async function deleteContract(id: string): Promise<ActionResult> {
   await connectDB();
 
   const contract = await Contract.findById(id);
-  if (!contract || contract.isDeleted) {
+  if (!contract) {
     return { success: false, error: 'Contract not found.' };
   }
 
-  contract.isDeleted = true;
-  await contract.save();
+  await Contract.findByIdAndDelete(id);
 
   const { userId, userName } = await getActor();
   await writeLog({
@@ -147,17 +146,17 @@ export async function deleteContract(id: string): Promise<ActionResult> {
   });
 
   revalidatePath('/contracts');
-  revalidatePath('/employees');
+  revalidatePath('/end-user-management');
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }
 
-export type ContractEndDisposition = 'decommission' | 'return';
+export type ContractEndDisposition = 'retire' | 'return';
 
 export async function endContract(
   id: string,
   reason: string,
-  disposition: ContractEndDisposition = 'decommission'
+  disposition: ContractEndDisposition = 'retire'
 ): Promise<ActionResult<{ endedAt: string }>> {
   const trimmed = reason?.trim() ?? '';
   if (!trimmed) {
@@ -166,7 +165,7 @@ export async function endContract(
   if (trimmed.length > 500) {
     return { success: false, error: 'Reason is too long (max 500 characters).' };
   }
-  if (disposition !== 'decommission' && disposition !== 'return') {
+  if (disposition !== 'retire' && disposition !== 'return') {
     return { success: false, error: 'Please choose what happens to the device.' };
   }
 
@@ -174,7 +173,6 @@ export async function endContract(
 
   const existing = await Contract.findById(id).lean();
   if (!existing) return { success: false, error: 'Contract not found.' };
-  if (existing.isDeleted) return { success: false, error: 'Contract not found.' };
   if (
     existing.endedAt ||
     getContractLifecycleStatus(existing.issuedDate) === 'Ended'
@@ -186,13 +184,13 @@ export async function endContract(
   await Contract.findByIdAndUpdate(id, { endedAt, endReason: trimmed });
 
   // Ending a contract also retires the device, using the same reason.
-  // The device can either be returned to stock or decommissioned.
+  // The device can either be returned to stock or retired.
   if (existing.assetId) {
     try {
       const assetResult =
         disposition === 'return'
           ? await returnAsset(existing.assetId.toString())
-          : await decommissionAsset(existing.assetId.toString(), trimmed);
+          : await retireAsset(existing.assetId.toString(), trimmed);
       if (!assetResult.success) {
         console.error('Failed to update asset for ended contract:', assetResult.error);
       }
@@ -212,7 +210,7 @@ export async function endContract(
   });
 
   revalidatePath('/contracts');
-  revalidatePath('/employees');
+  revalidatePath('/end-user-management');
   return { success: true, data: { endedAt: endedAt.toISOString() } };
 }
 

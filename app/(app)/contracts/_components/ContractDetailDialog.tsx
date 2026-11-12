@@ -41,13 +41,13 @@ export function ContractDetailDialog({ contract, onClose, onEdit, onUpdated }: P
 
   const [endOpen, setEndOpen] = useState(false);
   const [reason, setReason] = useState('');
-  const [disposition, setDisposition] = useState<'decommission' | 'return'>('decommission');
+  const [disposition, setDisposition] = useState<'retire' | 'return'>('retire');
   const [endError, setEndError] = useState('');
   const [isEnding, startEnding] = useTransition();
 
   function openEndDialog() {
     setReason('');
-    setDisposition('decommission');
+    setDisposition('retire');
     setEndError('');
     setEndOpen(true);
   }
@@ -332,12 +332,12 @@ export function ContractDetailDialog({ contract, onClose, onEdit, onUpdated }: P
           <RadioGroup
             row
             value={disposition}
-            onChange={(e) => setDisposition(e.target.value as 'decommission' | 'return')}
+            onChange={(e) => setDisposition(e.target.value as 'retire' | 'return')}
           >
             <FormControlLabel
-              value="decommission"
+              value="retire"
               control={<Radio size="small" />}
-              label={<Typography variant="body2">Decommission Asset</Typography>}
+              label={<Typography variant="body2">Retire Asset</Typography>}
             />
             <FormControlLabel
               value="return"
@@ -348,7 +348,7 @@ export function ContractDetailDialog({ contract, onClose, onEdit, onUpdated }: P
           <Typography variant="caption" color="text.secondary">
             {disposition === 'return'
               ? 'The device will be returned to the company and become available for assignment again.'
-              : 'The device will be decommissioned using the same reason.'}
+              : 'The device will be retired using the same reason.'}
           </Typography>
         </FormControl>
 

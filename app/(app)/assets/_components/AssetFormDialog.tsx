@@ -21,6 +21,7 @@ export function AssetFormDialog({ open, asset, onClose, onError, onUpdate }: Pro
   const [isPendingCheckbox, setIsPendingCheckbox] = useState(false);
   const [isPendingSubmit, startTransition] = useTransition();
   const isEdit = !!asset;
+  const isOrdered = isEdit && asset?.status === 'Ordered';
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -100,7 +101,8 @@ export function AssetFormDialog({ open, asset, onClose, onError, onUpdate }: Pro
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
-                disabled={!isEdit && isPendingCheckbox}
+                disabled={(!isEdit && isPendingCheckbox) || isOrdered}
+                helperText={isOrdered ? 'Confirm delivery to set the acquisition date.' : undefined}
                 InputLabelProps={{ shrink: true }}
                 defaultValue={asset?.acquisitionDate ? asset.acquisitionDate.split('T')[0] : ''} />
             </Grid>

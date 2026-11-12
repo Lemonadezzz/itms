@@ -2,7 +2,7 @@ import { Schema, model, models, Document, Types } from 'mongoose';
 
 export const ASSET_TYPES = ['laptop', 'desktop', 'display'] as const;
 export const DEPRECIATION_METHODS = ['straight-line', 'declining-balance', 'custom'] as const;
-export const ASSET_STATUSES = ['Ordered', 'In Stock', 'In Use', 'Decommissioned'] as const;
+export const ASSET_STATUSES = ['Ordered', 'In Stock', 'In Use', 'Retired'] as const;
 
 export type AssetType = (typeof ASSET_TYPES)[number];
 export type AssetStatus = (typeof ASSET_STATUSES)[number];
@@ -34,7 +34,6 @@ export interface IAsset extends Document {
   depreciationMethod?: string;
   currentAssignment?: ICurrentAssignment;
   assignmentHistory: IAssignmentHistory[];
-  isDeleted: boolean;
 }
 
 const AssignmentHistorySchema = new Schema<IAssignmentHistory>(
@@ -71,7 +70,6 @@ const AssetSchema = new Schema<IAsset>(
     depreciationMethod: { type: String, enum: DEPRECIATION_METHODS },
     currentAssignment: CurrentAssignmentSchema,
     assignmentHistory: { type: [AssignmentHistorySchema], default: [] },
-    isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

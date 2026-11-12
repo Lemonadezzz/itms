@@ -26,7 +26,7 @@ export default function LoginPage() {
     });
     setLoading(false);
     if (res?.error) return setError('Invalid email or password.');
-    router.push('/dashboard');
+    router.push('/assets-overview');
   }
 
   return (

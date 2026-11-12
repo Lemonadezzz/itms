@@ -2,27 +2,26 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Chip, Snackbar, Alert } from '@mui/material';
+import { Box, Button, Stack, TextField, InputAdornment, IconButton, Tooltip, Snackbar, Alert } from '@mui/material';
 import { Add, Delete, Search, EditNote, PersonRemove, TransferWithinAStation } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridPaginationModel } from '@mui/x-data-grid';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
-import { EmployeeDetailDialog } from './EmployeeDetailDialog';
-import { deleteEmployee, offboardEmployee } from '@/actions/employeeActions';
+import { EmployeeDetailDialog } from '@/app/(app)/end-user-management/_components/EmployeeDetailDialog';
 import { OffboardEmployeeModal } from './OffboardEmployeeModal';
-import { reactivateEmployee } from '@/actions/employeeActions';
+import { deleteEmployee } from '@/actions/employeeActions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { EMPLOYEE_CONTRACT_BADGE_COLORS } from '@/lib/employeeBadges';
-import type { EmployeeContractBadge } from '@/lib/employeeBadges';
 import type { EmployeeRow } from '@/lib/data/employees';
+import type { DepartmentOption } from '@/lib/data/departments';
 
 interface Props {
   rows: EmployeeRow[];
   total: number;
   page: number;
   pageSize: 50 | 75 | 100;
+  departments: DepartmentOption[];
 }
 
-export function EmployeesShell({ rows, total, page, pageSize }: Props) {
+export function EmployeesShell({ rows, total, page, pageSize, departments }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -64,44 +63,15 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
   };
 
   const columns: GridColDef<EmployeeRow>[] = [
-    { field: 'employeeName', headerName: 'Name',       flex: 1, minWidth: 160 },
-    { field: 'email',        headerName: 'Email',      width: 240,
-      renderCell: ({ value }) => value || '-',
-    },
-    { field: 'department',   headerName: 'Department', width: 150 },
-    { field: 'companyTenure', headerName: 'Company Tenure', width: 150 },
-    { field: 'status',       headerName: 'Status',     width: 100 },
+    { field: 'employeeName', headerName: 'Name', flex: 1, minWidth: 220 },
+    { field: 'department', headerName: 'Department', width: 200 },
     {
-      field: 'assignedAssetCount', headerName: 'Assigned Devices', width: 150,
-      renderCell: ({ value }) => {
-        const count = value as number;
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <Chip
-              label={count}
-              color={count > 0 ? 'primary' : 'default'}
-              size="small"
-              sx={{ fontSize: '0.65rem', height: 20 }}
-            />
-          </Box>
-        );
-      },
+      field: 'hiredAt', headerName: 'Hire Date', width: 140,
+      renderCell: ({ value }) => (value ? new Date(value as string).toLocaleDateString('en-CA') : '-'),
     },
+    { field: 'companyTenure', headerName: 'Company Tenure', width: 170 },
     {
-      field: 'contractBadge', headerName: 'Contracts', width: 120,
-      renderCell: ({ value }) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          <Chip
-            label={value as string}
-            size="small"
-            color={EMPLOYEE_CONTRACT_BADGE_COLORS[value as EmployeeContractBadge]}
-            sx={{ fontSize: '0.65rem', height: 20 }}
-          />
-        </Box>
-      ),
-    },
-    {
-      field: 'actions', headerName: '', width: 170, sortable: false,
+      field: 'actions', headerName: 'Actions', width: 170, sortable: false, align: 'center', headerAlign: 'center',
       renderCell: ({ row }) => (
         <Box>
           <Tooltip title="Manage Employee">
@@ -172,11 +142,16 @@ export function EmployeesShell({ rows, total, page, pageSize }: Props) {
           employee={detailTarget}
           onClose={() => setDetailTarget(null)}
           onEdit={() => { setEditing(detailTarget); setDialogOpen(true); }}
+          title="Manage Employee"
+          infoTitle="Employee Information"
+          showAssets={false}
+          showContracts={false}
+          showSoftware={false}
         />
       )}
 
       <EmployeeFormDialog
-        open={dialogOpen} employee={editing}
+        open={dialogOpen} employee={editing} departments={departments}
         onClose={() => { setDialogOpen(false); setEditing(null); }}
         onUpdate={(updated) => {
           setLocalRows((prev) => prev.map((r) => (r._id === updated._id ? { ...r, ...updated } : r)));

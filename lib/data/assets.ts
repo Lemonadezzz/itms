@@ -3,7 +3,7 @@ import { Asset, IAsset } from '@/models/Asset';
 import { Contract } from '@/models/Contract';
 import { getContractLifecycleStatus } from '@/lib/contracts';
 import type { AssetRow, AssetAssignmentHistory } from '@/types';
-import type { Types } from 'mongoose';
+import type { PipelineStage, Types } from 'mongoose';
 
 export type AssetFilters = {
   search?: string;
@@ -28,13 +28,16 @@ type LeanAsset = Omit<IAsset, '_id' | 'currentAssignment'> & {
   }[];
 };
 
+type AggregateAsset = LeanAsset & {
+  __assignedEmployee?: { employeeName?: string }[];
+};
+
 /** Asset ids whose laptop is currently covered by an active contract. */
 async function getActiveContractAssetIds(assetIds: Types.ObjectId[]): Promise<Set<string>> {
   if (assetIds.length === 0) return new Set();
 
   const contracts = await Contract.find({
     assetId: { $in: assetIds },
-    isDeleted: { $ne: true },
   })
     .select('assetId issuedDate endedAt')
     .lean();
@@ -79,17 +82,34 @@ export async function getAssets({
   if (filters.location)   query.location = { $regex: filters.location, $options: 'i' };
   if (filters.assignedToId) query['currentAssignment.employeeId'] = filters.assignedToId;
 
-  // Decommissioned assets always sink to the bottom of the list, regardless of
-  // the active sort. They are the only records with isDeleted = true.
-  const sort: Record<string, 1 | -1> = { isDeleted: 1, [sortField]: sortDir === 'asc' ? 1 : -1 };
+  // Retired assets always sink to the bottom of the list, regardless of the
+  // active sort. Status is the only source of truth — there is no delete flag.
+  const safeSortField = /^[A-Za-z][A-Za-z0-9_.]*$/.test(sortField) ? sortField : 'createdAt';
+  const safeSortDir: 1 | -1 = sortDir === 'asc' ? 1 : -1;
+  const pipeline: PipelineStage[] = [
+    { $match: query },
+    {
+      $addFields: {
+        __statusRank: { $cond: [{ $eq: ['$status', 'Retired'] }, 1, 0] },
+      },
+    },
+    { $sort: { __statusRank: 1, [safeSortField]: safeSortDir } },
+    { $skip: page * pageSize },
+    { $limit: pageSize },
+    // Resolve the current assignee's name without a second query.
+    {
+      $lookup: {
+        from: 'employees',
+        localField: 'currentAssignment.employeeId',
+        foreignField: '_id',
+        as: '__assignedEmployee',
+      },
+    },
+    { $unset: '__statusRank' },
+  ];
 
   const [docs, total] = await Promise.all([
-    Asset.find(query)
-      .sort(sort)
-      .skip(page * pageSize)
-      .limit(pageSize)
-      .populate('currentAssignment.employeeId', 'employeeName')
-      .lean() as unknown as Promise<LeanAsset[]>,
+    Asset.aggregate(pipeline) as unknown as Promise<AggregateAsset[]>,
     Asset.countDocuments(query),
   ]);
 
@@ -101,7 +121,7 @@ export async function getAssets({
     const ageInMonths = a.acquisitionDate ? Math.floor(
       (now - new Date(a.acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
     ) : 0;
-    const emp = a.currentAssignment?.employeeId as { employeeName?: string } | null | undefined;
+    const emp = a.__assignedEmployee?.[0] ?? (a.currentAssignment?.employeeId as { employeeName?: string } | null | undefined);
     return {
       _id: a._id.toString(),
       assetCode: a.assetCode,

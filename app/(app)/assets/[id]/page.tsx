@@ -26,7 +26,7 @@ export default async function AssetDetailPage({ params }: Props) {
               asset.status === 'In Use' ? 'warning' :
               asset.status === 'In Stock' ? 'success' :
               asset.status === 'Under Repair' ? 'info' :
-              asset.status === 'Decommissioned' ? 'error' :
+              asset.status === 'Retired' ? 'error' :
               'default'
             }
           />

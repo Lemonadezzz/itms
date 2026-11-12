@@ -4,8 +4,14 @@ import { useState, useTransition } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, MenuItem, Grid, Alert, CircularProgress,
+  Divider, Typography,
 } from '@mui/material';
 import { createSoftware, updateSoftware } from '@/actions/softwareActions';
+import {
+  SOFTWARE_CATEGORIES,
+  SOFTWARE_LICENSE_TYPES,
+  SOFTWARE_STATUSES,
+} from '@/lib/software';
 import type { SoftwareRow } from '@/lib/data/software';
 
 interface Props {
@@ -14,6 +20,8 @@ interface Props {
   suppliers: { _id: string; supplierName: string }[];
   onClose: () => void;
 }
+
+const dateValue = (value?: string) => (value ? value.split('T')[0] : '');
 
 export function SoftwareFormDialog({ open, software, suppliers, onClose }: Props) {
   const [error, setError] = useState('');
@@ -31,7 +39,7 @@ export function SoftwareFormDialog({ open, software, suppliers, onClose }: Props
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ fontSize: '0.95rem', fontWeight: 700 }}>
         {isEdit ? 'Edit Software' : 'Add Software'}
       </DialogTitle>
@@ -44,16 +52,49 @@ export function SoftwareFormDialog({ open, software, suppliers, onClose }: Props
                 defaultValue={software?.softwareName ?? ''} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="licenseType" label="License Type" size="small" select required fullWidth
-                defaultValue={software?.licenseType ?? ''}>
-                <MenuItem value="monthly">Monthly</MenuItem>
-                <MenuItem value="annually">Annually</MenuItem>
-                <MenuItem value="3_years">3 Years</MenuItem>
-                <MenuItem value="perpetual">Perpetual</MenuItem>
+              <TextField name="category" label="Category" size="small" select required fullWidth
+                defaultValue={software?.category ?? ''}>
+                {SOFTWARE_CATEGORIES.map((category) => (
+                  <MenuItem key={category} value={category}>{category}</MenuItem>
+                ))}
               </TextField>
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="supplierId" label="Supplier" size="small" select fullWidth
+              <TextField name="status" label="Status" size="small" select required fullWidth
+                defaultValue={software?.status ?? 'Active'}>
+                {SOFTWARE_STATUSES.map((status) => (
+                  <MenuItem key={status} value={status}>{status}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="appOwner" label="App Owner" size="small" fullWidth
+                defaultValue={software?.appOwner ?? ''} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="supportLink" label="Support Doc / Portal Link" size="small" fullWidth
+                placeholder="https://…"
+                defaultValue={software?.supportLink ?? ''} />
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 2.5 }} />
+          <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
+            Licenses &amp; Financials
+          </Typography>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="licenseType" label="License Type" size="small" select fullWidth
+                defaultValue={software?.licenseType ?? ''}>
+                <MenuItem value="">None</MenuItem>
+                {SOFTWARE_LICENSE_TYPES.map((license) => (
+                  <MenuItem key={license} value={license}>{license}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="supplierId" label="Supplier / Vendor" size="small" select fullWidth
                 defaultValue={software?.supplierId ?? ''}>
                 <MenuItem value="">None</MenuItem>
                 {suppliers.map((s) => (
@@ -62,19 +103,19 @@ export function SoftwareFormDialog({ open, software, suppliers, onClose }: Props
               </TextField>
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" required fullWidth
+              <TextField name="acquisitionDate" label="Acquisition Date" type="date" size="small" fullWidth
                 InputLabelProps={{ shrink: true }}
-                defaultValue={software?.acquisitionDate ? software.acquisitionDate.split('T')[0] : ''} />
+                defaultValue={dateValue(software?.acquisitionDate)} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="acquisitionCost" label="Cost (PHP)" type="number" size="small" required fullWidth
+              <TextField name="renewalDate" label="Renewal / Expiry Date" type="date" size="small" fullWidth
+                InputLabelProps={{ shrink: true }}
+                defaultValue={dateValue(software?.renewalDate)} />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField name="acquisitionCost" label="Cost / Subscription Fee (PHP)" type="number" size="small" fullWidth
                 inputProps={{ min: 0, step: 0.01 }}
                 defaultValue={software?.acquisitionCost ?? ''} />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField name="monthlyCost" label="Monthly Cost (PHP)" type="number" size="small" fullWidth
-                inputProps={{ min: 0, step: 0.01 }}
-                defaultValue={software?.monthlyCost ?? ''} />
             </Grid>
           </Grid>
         </DialogContent>

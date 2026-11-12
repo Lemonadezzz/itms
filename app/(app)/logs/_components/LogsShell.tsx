@@ -13,6 +13,47 @@ const ACTION_COLORS: Record<string, string> = {
   delete: '#ef4444',
   assign: '#F05340',
   return: '#eab308',
+  PRE_DELIVERY_INTAKE: '#8b5cf6',
+  CONFIRM_DELIVERY: '#0ea5e9',
+  ASSET_TRANSFER: '#f97316',
+  ASSET_RETIRE: '#dc2626',
+  ASSET_RESTORE: '#16a34a',
+  ASSET_MAINTENANCE_START: '#f59e0b',
+  ASSET_MAINTENANCE_END: '#10b981',
+  offboard: '#ef4444',
+  reactivate: '#22c55e',
+  endContract: '#7c3aed',
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  create: 'Create',
+  update: 'Update',
+  delete: 'Delete',
+  assign: 'Assign',
+  return: 'Return',
+  PRE_DELIVERY_INTAKE: 'Pre-delivery intake',
+  CONFIRM_DELIVERY: 'Confirm delivery',
+  ASSET_TRANSFER: 'Transfer',
+  ASSET_RETIRE: 'Retire',
+  ASSET_RESTORE: 'Restore',
+  ASSET_MAINTENANCE_START: 'Maintenance start',
+  ASSET_MAINTENANCE_END: 'Maintenance end',
+  offboard: 'Inactivate',
+  reactivate: 'Reactivate',
+  endContract: 'End contract',
+};
+
+const ACTION_OPTIONS = [
+  'create', 'update', 'delete', 'assign', 'return',
+  'PRE_DELIVERY_INTAKE', 'CONFIRM_DELIVERY', 'ASSET_TRANSFER',
+  'ASSET_RETIRE', 'ASSET_RESTORE', 'ASSET_MAINTENANCE_START',
+  'ASSET_MAINTENANCE_END', 'offboard', 'reactivate', 'endContract',
+];
+
+const MODULE_LABELS: Record<string, string> = {
+  Asset: 'Hardware',
+  Employee: 'Assignments',
+  Contract: 'Contracts',
 };
 
 interface Props {
@@ -41,13 +82,16 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
     },
     { field: 'userName',     headerName: 'User',        width: 140 },
     {
-      field: 'action', headerName: 'Action', width: 100,
+      field: 'action', headerName: 'Action', width: 150,
       renderCell: ({ value }) => (
-        <Chip label={value} size="small"
+        <Chip label={ACTION_LABELS[value] ?? value} size="small"
           sx={{ bgcolor: ACTION_COLORS[value] ?? '#888', color: '#fff', fontSize: '0.7rem', height: 20 }} />
       ),
     },
-    { field: 'relatedModel', headerName: 'Module',      width: 110 },
+    {
+      field: 'relatedModel', headerName: 'Module', width: 120,
+      renderCell: ({ value }) => MODULE_LABELS[value] ?? value,
+    },
     { field: 'description',  headerName: 'Description', flex: 1, minWidth: 200 },
   ];
 
@@ -69,8 +113,8 @@ export function LogsShell({ rows, total, page, pageSize }: Props) {
           slotProps={{ htmlInput: { 'data-nh': '' } }}
         >
           <MenuItem value="">All</MenuItem>
-          {['create', 'update', 'delete', 'assign', 'return'].map((a) => (
-            <MenuItem key={a} value={a}>{a}</MenuItem>
+          {ACTION_OPTIONS.map((a) => (
+            <MenuItem key={a} value={a}>{ACTION_LABELS[a] ?? a}</MenuItem>
           ))}
         </TextField>
       </Stack>

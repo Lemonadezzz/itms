@@ -21,6 +21,17 @@ async function getActor() {
   };
 }
 
+/** True when the device is covered by a contract that is still running. */
+async function hasActiveContract(assetId: string): Promise<boolean> {
+  const contracts = await Contract.find({ assetId })
+    .select('issuedDate endedAt')
+    .lean();
+  const now = new Date();
+  return contracts.some(
+    (c) => !c.endedAt && getContractLifecycleStatus(c.issuedDate, now) === 'Active'
+  );
+}
+
 export async function createAsset(formData: unknown): Promise<ActionResult<string>> {
   const parsed = CreateAssetSchema.safeParse(formData);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Validation error' };
@@ -55,15 +66,19 @@ export async function updateAsset(id: string, formData: unknown): Promise<Action
 
   await connectDB();
   try {
-    const { issuedDate, ...data } = parsed.data;
+    const { issuedDate, acquisitionDate, ...data } = parsed.data;
 
     // The Issued Date lives on the current assignment (not the asset itself).
     // Only update it when the asset is actually assigned, so we never create a
     // partial assignment record.
-    const current = await Asset.findById(id).select('currentAssignment').lean();
+    const current = await Asset.findById(id).select('currentAssignment status').lean();
     if (!current) return { success: false, error: 'Asset not found' };
 
     const update: Record<string, unknown> = { ...data };
+    // Ordered assets do not have an acquisition date until delivery is confirmed.
+    if (current.status !== 'Ordered' && acquisitionDate !== undefined) {
+      update.acquisitionDate = acquisitionDate;
+    }
     if (issuedDate && current.currentAssignment) {
       update['currentAssignment.assignedDate'] = issuedDate;
     }
@@ -123,6 +138,14 @@ export async function returnAsset(assetId: string, returnedDate: Date = new Date
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
+
+  if (await hasActiveContract(assetId)) {
+    return {
+      success: false,
+      error: 'This device is on an active contract and cannot be returned.',
+    };
+  }
+
   if (!asset.currentAssignment) return { success: false, error: 'Asset is not assigned' };
 
   // Capture the current employee's name BEFORE clearing the assignment
@@ -150,10 +173,7 @@ export async function deleteAsset(id: string): Promise<ActionResult> {
   if (!asset) return { success: false, error: 'Asset not found' };
 
   // Contracts must be deleted before the device they belong to.
-  const contract = await Contract.findOne({
-    assetId: id,
-    isDeleted: { $ne: true },
-  })
+  const contract = await Contract.findOne({ assetId: id })
     .select('_id')
     .lean();
   if (contract) {
@@ -224,6 +244,13 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
 
+  if (await hasActiveContract(assetId)) {
+    return {
+      success: false,
+      error: 'This device is on an active contract and cannot be transferred.',
+    };
+  }
+
   const empObjId = new Types.ObjectId(newEmployeeId);
   const employee = await Employee.findById(newEmployeeId).select('employeeName').lean();
   const employeeName = employee?.employeeName ?? 'Unknown Employee';
@@ -249,41 +276,30 @@ export async function transferAsset(assetId: string, newEmployeeId: string, note
   return { success: true, data: undefined };
 }
 
-export async function recommissionAsset(assetId: string): Promise<ActionResult> {
+export async function restoreAsset(assetId: string): Promise<ActionResult> {
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
 
   asset.status = 'In Stock';
-  asset.isDeleted = false;
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_RECOMMISSION', description: `Recommissioned asset ${asset.assetCode} — returned to In Stock`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode });
+  await writeLog({ userId, userName, action: 'ASSET_RESTORE', description: `Restored asset ${asset.assetCode} — returned to In Stock`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }
 
-export async function decommissionAsset(assetId: string, reason: string): Promise<ActionResult> {
+export async function retireAsset(assetId: string, reason: string): Promise<ActionResult> {
   await connectDB();
   const asset = await Asset.findById(assetId);
   if (!asset) return { success: false, error: 'Asset not found' };
 
-  // A device covered by an active contract cannot be decommissioned on its own.
-  const contracts = await Contract.find({
-    assetId,
-    isDeleted: { $ne: true },
-  })
-    .select('issuedDate endedAt')
-    .lean();
-  const now = new Date();
-  const hasActiveContract = contracts.some(
-    (c) => !c.endedAt && getContractLifecycleStatus(c.issuedDate, now) === 'Active'
-  );
-  if (hasActiveContract) {
+  // A device covered by an active contract cannot be retired on its own.
+  if (await hasActiveContract(assetId)) {
     return {
       success: false,
-      error: 'This device is on an active contract and cannot be decommissioned.',
+      error: 'This device is on an active contract and cannot be retired.',
     };
   }
 
@@ -302,12 +318,11 @@ export async function decommissionAsset(assetId: string, reason: string): Promis
     asset.currentAssignment = undefined;
   }
 
-  asset.status = 'Decommissioned';
-  asset.isDeleted = true;
+  asset.status = 'Retired';
   await asset.save();
 
   const { userId, userName } = await getActor();
-  await writeLog({ userId, userName, action: 'ASSET_DECOMMISSION', description: `Decommissioned asset ${asset.assetCode}: ${reason}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, reason });
+  await writeLog({ userId, userName, action: 'ASSET_RETIRE', description: `Retired asset ${asset.assetCode}: ${reason}`, relatedModel: 'Asset', relatedId: assetId, assetCode: asset.assetCode, reason });
   revalidatePath('/assets');
   return { success: true, data: undefined };
 }

@@ -6,7 +6,7 @@ export const authConfig: NextAuthConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isLoginPage = nextUrl.pathname.startsWith('/login');
-      if (isLoginPage) return isLoggedIn ? Response.redirect(new URL('/dashboard', nextUrl)) : true;
+      if (isLoginPage) return isLoggedIn ? Response.redirect(new URL('/assets-overview', nextUrl)) : true;
       return isLoggedIn;
     },
   },
