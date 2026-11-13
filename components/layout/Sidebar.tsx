@@ -220,7 +220,7 @@ export function Sidebar() {
           {/* Employee Management category */}
           {visibleEmployees.length > 0 && (
             <Tooltip title={open ? '' : 'Employee Management'} placement="right" arrow>
-              <ListItemButton component="div" onClick={() => setEmployeesOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
+              <ListItemButton component="div" onClick={() => router.push('/employees')} sx={{ ...itemSx, cursor: 'pointer' }}>
                 <ListItemIcon sx={iconSx(employeesActive)}>
                   <ManageAccounts fontSize="small" />
                 </ListItemIcon>
@@ -286,7 +286,7 @@ export function Sidebar() {
 
           {/* IT Support category */}
           <Tooltip title={open ? '' : 'IT Support'} placement="right" arrow>
-            <ListItemButton component="div" onClick={() => setSupportOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
+            <ListItemButton component="div" onClick={() => router.push('/support/reports')} sx={{ ...itemSx, cursor: 'pointer' }}>
               <ListItemIcon sx={iconSx(supportActive)}>
                 <SupportAgent fontSize="small" />
               </ListItemIcon>
@@ -352,7 +352,7 @@ export function Sidebar() {
           {visibleAccess.length > 0 && (
             <>
               <Tooltip title={open ? '' : 'Access Management'} placement="right" arrow>
-                <ListItemButton component="div" onClick={() => setAccessOpen((v) => !v)} sx={{ ...itemSx, cursor: 'pointer' }}>
+                <ListItemButton component="div" onClick={() => router.push('/access-management/user-accounts')} sx={{ ...itemSx, cursor: 'pointer' }}>
                   <ListItemIcon sx={iconSx(accessActive)}>
                     <AdminPanelSettings fontSize="small" />
                   </ListItemIcon>
